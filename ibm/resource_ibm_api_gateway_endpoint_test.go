@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	apigatewaysdk "github.com/IBM/apigateway-go-sdk"
+	apigatewaysdk "github.com/IBM/apigateway-go-sdk/apigatewaycontrollerapiv1"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"

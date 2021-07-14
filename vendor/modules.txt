@@ -8,8 +8,6 @@ cloud.google.com/go/internal/trace
 cloud.google.com/go/internal/version
 # cloud.google.com/go/storage v1.10.0
 cloud.google.com/go/storage
-# github.com/Bowery/prompt v0.0.0-20190916142128-fa8279994f75
-## explicit
 # github.com/IBM-Cloud/bluemix-go v0.0.0-20210611051827-cdc80c935c05
 ## explicit
 github.com/IBM-Cloud/bluemix-go
@@ -80,9 +78,9 @@ github.com/IBM-Cloud/power-go-client/power/client/storage_types
 github.com/IBM-Cloud/power-go-client/power/client/swagger_spec
 github.com/IBM-Cloud/power-go-client/power/models
 github.com/IBM-Cloud/power-go-client/utils
-# github.com/IBM/apigateway-go-sdk v0.0.0-20200414212859-416e5948678a
+# github.com/IBM/apigateway-go-sdk v0.0.0-20210714141226-a5d5d49caaca
 ## explicit
-github.com/IBM/apigateway-go-sdk
+github.com/IBM/apigateway-go-sdk/apigatewaycontrollerapiv1
 github.com/IBM/apigateway-go-sdk/common
 # github.com/IBM/appconfiguration-go-admin-sdk v0.1.0
 ## explicit
@@ -221,8 +219,6 @@ github.com/ScaleFT/sshkeys
 github.com/Shopify/sarama
 # github.com/agext/levenshtein v1.2.2
 github.com/agext/levenshtein
-# github.com/apache/incubator-openwhisk-client-go v0.0.0-20171128215515-ad814bc98c32
-## explicit
 # github.com/apache/openwhisk-client-go v0.0.0-20200201143223-a804fb82d105
 ## explicit
 github.com/apache/openwhisk-client-go/whisk
@@ -292,8 +288,6 @@ github.com/cloudfoundry/jibber_jabber
 github.com/davecgh/go-spew/spew
 # github.com/dchest/bcrypt_pbkdf v0.0.0-20150205184540-83f37f9c154a
 github.com/dchest/bcrypt_pbkdf
-# github.com/dchest/safefile v0.0.0-20151022103144-855e8d98f185
-## explicit
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 ## explicit
 github.com/dgrijalva/jwt-go
@@ -434,8 +428,6 @@ github.com/google/go-cmp/cmp/internal/value
 # github.com/google/go-querystring v1.1.0
 ## explicit
 github.com/google/go-querystring/query
-# github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
-## explicit
 # github.com/google/uuid v1.2.0
 ## explicit
 github.com/google/uuid
@@ -489,8 +481,6 @@ github.com/hashicorp/hcl/v2/hclparse
 github.com/hashicorp/hcl/v2/hclsyntax
 github.com/hashicorp/hcl/v2/hclwrite
 github.com/hashicorp/hcl/v2/json
-# github.com/hashicorp/hil v0.0.0-20200423225030-a18a1cd20038
-## explicit
 # github.com/hashicorp/logutils v1.0.0
 github.com/hashicorp/logutils
 # github.com/hashicorp/terraform-config-inspect v0.0.0-20191115094559-17f92b0546e8
@@ -575,8 +565,6 @@ github.com/josharian/intern
 github.com/jstemmer/go-junit-report
 github.com/jstemmer/go-junit-report/formatter
 github.com/jstemmer/go-junit-report/parser
-# github.com/kardianos/govendor v1.0.9
-## explicit
 # github.com/kevinburke/ssh_config v0.0.0-20190725054713-01f96b0aa0cd
 github.com/kevinburke/ssh_config
 # github.com/klauspost/compress v1.11.0
@@ -641,8 +629,6 @@ github.com/posener/complete/cmd/install
 github.com/posener/complete/match
 # github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 github.com/rcrowley/go-metrics
-# github.com/renier/xmlrpc v0.0.0-20170708154548-ce4a1a486c03
-## explicit
 # github.com/satori/go.uuid v1.2.0
 ## explicit
 github.com/satori/go.uuid
