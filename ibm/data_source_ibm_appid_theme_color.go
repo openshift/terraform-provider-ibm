@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDThemeColor() *schema.Resource {
 	return &schema.Resource{
 		Description: "Colors of the App ID login widget",
-		ReadContext: dataSourceIBMAppIDThemeColorRead,
+		Read:        dataSourceIBMAppIDThemeColorRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Type:        schema.TypeString,
@@ -25,21 +26,21 @@ func dataSourceIBMAppIDThemeColor() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDThemeColorRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDThemeColorRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	colors, resp, err := appIDClient.GetThemeColorWithContext(ctx, &appid.GetThemeColorOptions{
+	colors, resp, err := appIDClient.GetThemeColorWithContext(context.TODO(), &appid.GetThemeColorOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID theme colors: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID theme colors: %s\n%s", err, resp)
 	}
 
 	if colors.HeaderColor != nil {

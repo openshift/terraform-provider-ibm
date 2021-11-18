@@ -6,8 +6,7 @@ package ibm
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"log"
 	"net/url"
 	"reflect"
@@ -18,7 +17,7 @@ import (
 
 func dataSourceIbmEnterpriseAccountGroups() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmEnterpriseAccountGroupsRead,
+		Read: dataSourceIbmEnterpriseAccountGroupsRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -127,10 +126,10 @@ func getEnterpriseNext(next *string) (string, error) {
 	return q.Get("next_docid"), nil
 }
 
-func dataSourceIbmEnterpriseAccountGroupsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmEnterpriseAccountGroupsRead(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	next_docid := ""
 	var allRecs []enterprisemanagementv1.AccountGroup
@@ -139,15 +138,15 @@ func dataSourceIbmEnterpriseAccountGroupsRead(context context.Context, d *schema
 		if next_docid != "" {
 			listAccountGroupsOptions.NextDocid = &next_docid
 		}
-		listAccountGroupsResponse, response, err := enterpriseManagementClient.ListAccountGroupsWithContext(context, listAccountGroupsOptions)
+		listAccountGroupsResponse, response, err := enterpriseManagementClient.ListAccountGroupsWithContext(context.TODO(), listAccountGroupsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListAccountGroupsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		next_docid, err = getEnterpriseNext(listAccountGroupsResponse.NextURL)
 		if err != nil {
 			log.Printf("[DEBUG] ListAccountGroupsWithContext failed. Error occurred while parsing NextURL: %s", err)
-			return diag.FromErr(err)
+			return err
 		}
 		allRecs = append(allRecs, listAccountGroupsResponse.Resources...)
 		if next_docid == "" {
@@ -173,7 +172,7 @@ func dataSourceIbmEnterpriseAccountGroupsRead(context context.Context, d *schema
 	allRecs = matchResources
 
 	if len(allRecs) == 0 {
-		return diag.FromErr(fmt.Errorf("no Resources found with name %s", name))
+		return fmt.Errorf("no Resources found with name %s", name)
 	}
 
 	if suppliedFilter {
@@ -184,7 +183,7 @@ func dataSourceIbmEnterpriseAccountGroupsRead(context context.Context, d *schema
 	if allRecs != nil {
 		err = d.Set("account_groups", dataSourceListEnterpriseAccountGroupsResponseFlattenResources(allRecs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resources %s", err))
+			return fmt.Errorf("Error setting resources %s", err)
 		}
 	}
 

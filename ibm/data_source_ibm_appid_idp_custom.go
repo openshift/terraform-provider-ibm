@@ -2,14 +2,15 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDIDPCustom() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDIDPCustomRead,
+		Read: dataSourceIBMAppIDIDPCustomRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -29,28 +30,28 @@ func dataSourceIBMAppIDIDPCustom() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDIDPCustomRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDIDPCustomRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	config, resp, err := appIDClient.GetCustomIDPWithContext(ctx, &appid.GetCustomIDPOptions{
+	config, resp, err := appIDClient.GetCustomIDPWithContext(context.TODO(), &appid.GetCustomIDPOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID custom IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID custom IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *config.IsActive)
 
 	if config.Config != nil && config.Config.PublicKey != nil {
 		if err := d.Set("public_key", *config.Config.PublicKey); err != nil {
-			return diag.Errorf("failed setting config: %s", err)
+			return fmt.Errorf("failed setting config: %s", err)
 		}
 	}
 

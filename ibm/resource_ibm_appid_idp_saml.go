@@ -2,22 +2,23 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func resourceIBMAppIDIDPSAML() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDIDPSAMLCreate,
-		ReadContext:   resourceIBMAppIDIDPSAMLRead,
-		DeleteContext: resourceIBMAppIDIDPSAMLDelete,
-		UpdateContext: resourceIBMAppIDIDPSAMLUpdate,
+		Create: resourceIBMAppIDIDPSAMLCreate,
+		Read:   resourceIBMAppIDIDPSAMLRead,
+		Delete: resourceIBMAppIDIDPSAMLDelete,
+		Update: resourceIBMAppIDIDPSAMLUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -110,16 +111,16 @@ func resourceIBMAppIDIDPSAML() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDIDPSAMLRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPSAMLRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	saml, resp, err := appIDClient.GetSAMLIDPWithContext(ctx, &appid.GetSAMLIDPOptions{
+	saml, resp, err := appIDClient.GetSAMLIDPWithContext(context.TODO(), &appid.GetSAMLIDPOptions{
 		TenantID: &tenantID,
 	})
 
@@ -130,14 +131,14 @@ func resourceIBMAppIDIDPSAMLRead(ctx context.Context, d *schema.ResourceData, me
 			return nil
 		}
 
-		return diag.Errorf("Error loading AppID SAML IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID SAML IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *saml.IsActive)
 
 	if saml.Config != nil {
 		if err := d.Set("config", flattenAppIDIDPSAMLConfig(saml.Config)); err != nil {
-			return diag.Errorf("failed setting config: %s", err)
+			return fmt.Errorf("failed setting config: %s", err)
 		}
 	}
 
@@ -146,11 +147,11 @@ func resourceIBMAppIDIDPSAMLRead(ctx context.Context, d *schema.ResourceData, me
 	return nil
 }
 
-func resourceIBMAppIDIDPSAMLCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPSAMLCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -167,15 +168,15 @@ func resourceIBMAppIDIDPSAMLCreate(ctx context.Context, d *schema.ResourceData, 
 		}
 	}
 
-	_, resp, err := appIDClient.SetSAMLIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetSAMLIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error applying SAML IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error applying SAML IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDIDPSAMLRead(ctx, d, meta)
+	return resourceIBMAppIDIDPSAMLRead(d, meta)
 }
 
 func expandAppIDIDPSAMLAuthNContext(ctx []interface{}) *appid.SAMLConfigParamsAuthnContext {
@@ -250,20 +251,20 @@ func appIDIDPSAMLConfigDefaults(tenantID string) *appid.SetSAMLIDPOptions {
 	}
 }
 
-func resourceIBMAppIDIDPSAMLDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPSAMLDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	config := appIDIDPSAMLConfigDefaults(tenantID)
 
-	_, resp, err := appIDClient.SetSAMLIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetSAMLIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error resetting SAML IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting SAML IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
@@ -271,7 +272,7 @@ func resourceIBMAppIDIDPSAMLDelete(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func resourceIBMAppIDIDPSAMLUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPSAMLUpdate(d *schema.ResourceData, m interface{}) error {
 	// since this is configuration we can reuse create method
-	return resourceIBMAppIDIDPSAMLCreate(ctx, d, m)
+	return resourceIBMAppIDIDPSAMLCreate(d, m)
 }

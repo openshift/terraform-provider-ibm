@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsDedicatedHosts() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsDedicatedHostsRead,
+		Read: dataSourceIbmIsDedicatedHostsRead,
 
 		Schema: map[string]*schema.Schema{
 			"host_group": &schema.Schema{
@@ -352,10 +351,10 @@ func dataSourceIbmIsDedicatedHosts() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsDedicatedHostsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsDedicatedHostsRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listDedicatedHostsOptions := &vpcv1.ListDedicatedHostsOptions{}
@@ -369,10 +368,10 @@ func dataSourceIbmIsDedicatedHostsRead(context context.Context, d *schema.Resour
 		if start != "" {
 			listDedicatedHostsOptions.Start = &start
 		}
-		dedicatedHostCollection, response, err := vpcClient.ListDedicatedHostsWithContext(context, listDedicatedHostsOptions)
+		dedicatedHostCollection, response, err := vpcClient.ListDedicatedHostsWithContext(context.TODO(), listDedicatedHostsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListDedicatedHostsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		start = GetNext(dedicatedHostCollection.Next)
 		allrecs = append(allrecs, dedicatedHostCollection.DedicatedHosts...)
@@ -387,11 +386,11 @@ func dataSourceIbmIsDedicatedHostsRead(context context.Context, d *schema.Resour
 
 		err = d.Set("dedicated_hosts", dataSourceDedicatedHostCollectionFlattenDedicatedHosts(allrecs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting dedicated_hosts %s", err))
+			return fmt.Errorf("Error setting dedicated_hosts %s", err)
 		}
 
 		if err = d.Set("total_count", len(allrecs)); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting total_count: %s", err))
+			return fmt.Errorf("Error setting total_count: %s", err)
 		}
 	}
 	return nil

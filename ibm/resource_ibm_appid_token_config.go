@@ -5,22 +5,23 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
 	"github.com/IBM/go-sdk-core/v5/core"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func resourceIBMAppIDTokenConfig() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDTokenConfigCreate,
-		ReadContext:   resourceIBMAppIDTokenConfigRead,
-		UpdateContext: resourceIBMAppIDTokenConfigUpdate,
-		DeleteContext: resourceIBMAppIDTokenConfigDelete,
+		Create: resourceIBMAppIDTokenConfigCreate,
+		Read:   resourceIBMAppIDTokenConfigRead,
+		Update: resourceIBMAppIDTokenConfigUpdate,
+		Delete: resourceIBMAppIDTokenConfigDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -108,40 +109,40 @@ func resourceIBMAppIDTokenConfig() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDTokenConfigCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDTokenConfigCreate(d *schema.ResourceData, meta interface{}) error {
 	appidClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
 	input := expandTokenConfig(d)
 
-	_, resp, err := appidClient.PutTokensConfigWithContext(ctx, input)
+	_, resp, err := appidClient.PutTokensConfigWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID token configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID token configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDTokenConfigRead(ctx, d, meta)
+	return resourceIBMAppIDTokenConfigRead(d, meta)
 }
 
-func resourceIBMAppIDTokenConfigRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+func resourceIBMAppIDTokenConfigRead(d *schema.ResourceData, meta interface{}) error {
+	var diags error
 
 	appidClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	tokenConfig, response, err := appidClient.GetTokensConfigWithContext(ctx, &appid.GetTokensConfigOptions{
+	tokenConfig, response, err := appidClient.GetTokensConfigWithContext(context.TODO(), &appid.GetTokensConfigOptions{
 		TenantID: &tenantID,
 	})
 
@@ -151,7 +152,7 @@ func resourceIBMAppIDTokenConfigRead(ctx context.Context, d *schema.ResourceData
 			return nil
 		}
 
-		return diag.Errorf("Error reading AppID token configuration: %s\n%s", err, response)
+		return fmt.Errorf("Error reading AppID token configuration: %s\n%s", err, response)
 	}
 
 	if tokenConfig.Access != nil {
@@ -180,13 +181,13 @@ func resourceIBMAppIDTokenConfigRead(ctx context.Context, d *schema.ResourceData
 
 	if tokenConfig.AccessTokenClaims != nil {
 		if err := d.Set("access_token_claim", flattenTokenClaims(tokenConfig.AccessTokenClaims)); err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
 	if tokenConfig.IDTokenClaims != nil {
 		if err := d.Set("id_token_claim", flattenTokenClaims(tokenConfig.IDTokenClaims)); err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
@@ -279,8 +280,8 @@ func expandTokenConfig(d *schema.ResourceData) *appid.PutTokensConfigOptions {
 	return config
 }
 
-func resourceIBMAppIDTokenConfigUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	return resourceIBMAppIDTokenConfigCreate(ctx, d, m)
+func resourceIBMAppIDTokenConfigUpdate(d *schema.ResourceData, m interface{}) error {
+	return resourceIBMAppIDTokenConfigCreate(d, m)
 }
 
 func tokenConfigDefaults(tenantID string) *appid.PutTokensConfigOptions {
@@ -300,20 +301,20 @@ func tokenConfigDefaults(tenantID string) *appid.PutTokensConfigOptions {
 	}
 }
 
-func resourceIBMAppIDTokenConfigDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDTokenConfigDelete(d *schema.ResourceData, meta interface{}) error {
 	appidClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
 	config := tokenConfigDefaults(tenantID)
-	_, resp, err := appidClient.PutTokensConfigWithContext(ctx, config)
+	_, resp, err := appidClient.PutTokensConfigWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID token configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID token configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

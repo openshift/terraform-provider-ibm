@@ -4,19 +4,17 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/container-registry-go-sdk/containerregistryv1"
 )
 
 func dataIBMContainerRegistryNamespaces() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataIBMContainerRegistryNamespacesRead,
+		Read: dataIBMContainerRegistryNamespacesRead,
 
 		Schema: map[string]*schema.Schema{
 			"namespaces": {
@@ -80,17 +78,17 @@ func dataIBMContainerRegistryNamespaces() *schema.Resource {
 	}
 }
 
-func dataIBMContainerRegistryNamespacesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataIBMContainerRegistryNamespacesRead(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listNamespaceDetailsOptions := &containerregistryv1.ListNamespaceDetailsOptions{}
 
 	namespaceDetailsList, _, err := containerRegistryClient.ListNamespaceDetails(listNamespaceDetailsOptions)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	namespaces := []map[string]interface{}{}
@@ -109,7 +107,7 @@ func dataIBMContainerRegistryNamespacesRead(context context.Context, d *schema.R
 		namespaces = append(namespaces, namespace)
 	}
 	if err = d.Set("namespaces", namespaces); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting namespaces: %s", err))
+		return fmt.Errorf("Error setting namespaces: %s", err)
 	}
 	d.SetId(time.Now().UTC().String())
 	return nil

@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDMFAChannel() *schema.Resource {
 	return &schema.Resource{
 		Description: "Get MFA channel configuration",
-		ReadContext: dataSourceIBMAppIDMFAChannelRead,
+		Read:        dataSourceIBMAppIDMFAChannelRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -53,21 +54,21 @@ func dataSourceIBMAppIDMFAChannel() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDMFAChannelRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDMFAChannelRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	ch, resp, err := appIDClient.ListChannelsWithContext(ctx, &appid.ListChannelsOptions{
+	ch, resp, err := appIDClient.ListChannelsWithContext(context.TODO(), &appid.ListChannelsOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID MFA channels: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID MFA channels: %s\n%s", err, resp)
 	}
 
 	for _, channel := range ch.Channels {
@@ -83,7 +84,7 @@ func dataSourceIBMAppIDMFAChannelRead(ctx context.Context, d *schema.ResourceDat
 			}
 
 			if err := d.Set("sms_config", []interface{}{config}); err != nil {
-				return diag.Errorf("Error setting AppID MFA channel config: %s", err)
+				return fmt.Errorf("Error setting AppID MFA channel config: %s", err)
 			}
 		}
 	}

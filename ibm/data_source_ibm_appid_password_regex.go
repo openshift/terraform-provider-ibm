@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDPasswordRegex() *schema.Resource {
 	return &schema.Resource{
 		Description: "The regular expression used by App ID for password strength validation",
-		ReadContext: dataSourceIBMAppIDPasswordRegexRead,
+		Read:        dataSourceIBMAppIDPasswordRegexRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The service `tenantId`",
@@ -36,21 +37,21 @@ func dataSourceIBMAppIDPasswordRegex() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDPasswordRegexRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDPasswordRegexRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	pw, resp, err := appIDClient.GetCloudDirectoryPasswordRegexWithContext(ctx, &appid.GetCloudDirectoryPasswordRegexOptions{
+	pw, resp, err := appIDClient.GetCloudDirectoryPasswordRegexWithContext(context.TODO(), &appid.GetCloudDirectoryPasswordRegexOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID Cloud Directory password regex: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Cloud Directory password regex: %s\n%s", err, resp)
 	}
 
 	if pw.Base64EncodedRegex != nil {

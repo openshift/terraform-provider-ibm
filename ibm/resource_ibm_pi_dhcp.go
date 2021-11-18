@@ -9,9 +9,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	st "github.com/IBM-Cloud/power-go-client/clients/instance"
 	"github.com/IBM-Cloud/power-go-client/errors"
@@ -34,10 +33,10 @@ const (
 
 func resourceIBMPIDhcp() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMPIDhcpCreate,
-		ReadContext:   resourceIBMPIDhcpRead,
-		DeleteContext: resourceIBMPIDhcpDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMPIDhcpCreate,
+		Read:     resourceIBMPIDhcpRead,
+		Delete:   resourceIBMPIDhcpDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(30 * time.Minute),
@@ -91,47 +90,47 @@ func resourceIBMPIDhcp() *schema.Resource {
 	}
 }
 
-func resourceIBMPIDhcpCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPIDhcpCreate(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := d.Get(helpers.PICloudInstanceId).(string)
 
 	client := st.NewIBMPIDhcpClient(sess, cloudInstanceID)
-	dhcpServer, err := client.CreateWithContext(ctx, cloudInstanceID)
+	dhcpServer, err := client.CreateWithContext(context.TODO(), cloudInstanceID)
 	if err != nil {
 		log.Printf("[DEBUG] create DHCP failed %v", err)
-		return diag.Errorf(errors.CreateDchpOperationFailed, cloudInstanceID, err)
+		return fmt.Errorf(errors.CreateDchpOperationFailed, cloudInstanceID, err)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", cloudInstanceID, *dhcpServer.ID))
 
-	_, err = waitForIBMPIDhcpStatus(ctx, client, *dhcpServer.ID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
+	_, err = waitForIBMPIDhcpStatus(context.TODO(), client, *dhcpServer.ID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
-		return diag.Errorf(errors.CreateDchpOperationFailed, cloudInstanceID, err)
+		return fmt.Errorf(errors.CreateDchpOperationFailed, cloudInstanceID, err)
 	}
 
-	return resourceIBMPIDhcpRead(ctx, d, meta)
+	return resourceIBMPIDhcpRead(d, meta)
 }
 
-func resourceIBMPIDhcpRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPIDhcpRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := parts[0]
 	dhcpID := parts[1]
 
 	client := st.NewIBMPIDhcpClient(sess, cloudInstanceID)
-	dhcpServer, err := client.GetWithContext(ctx, dhcpID, cloudInstanceID)
+	dhcpServer, err := client.GetWithContext(context.TODO(), dhcpID, cloudInstanceID)
 	if err != nil {
 		switch err.(type) {
 		case *p_cloud_service_d_h_c_p.PcloudDhcpGetNotFound:
@@ -140,7 +139,7 @@ func resourceIBMPIDhcpRead(ctx context.Context, d *schema.ResourceData, meta int
 			return nil
 		}
 		log.Printf("[DEBUG] get DHCP failed %v", err)
-		return diag.Errorf(errors.GetDhcpOperationFailed, dhcpID, err)
+		return fmt.Errorf(errors.GetDhcpOperationFailed, dhcpID, err)
 	}
 
 	d.Set(PIDhcpId, *dhcpServer.ID)
@@ -162,22 +161,22 @@ func resourceIBMPIDhcpRead(ctx context.Context, d *schema.ResourceData, meta int
 
 	return nil
 }
-func resourceIBMPIDhcpDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPIDhcpDelete(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := parts[0]
 	dhcpID := parts[1]
 
 	client := st.NewIBMPIDhcpClient(sess, cloudInstanceID)
-	_, err = client.DeleteWithContext(ctx, dhcpID, cloudInstanceID)
+	_, err = client.DeleteWithContext(context.TODO(), dhcpID, cloudInstanceID)
 	if err != nil {
 		switch err.(type) {
 		case *p_cloud_service_d_h_c_p.PcloudDhcpDeleteNotFound:
@@ -186,11 +185,11 @@ func resourceIBMPIDhcpDelete(ctx context.Context, d *schema.ResourceData, meta i
 			return nil
 		}
 		log.Printf("[DEBUG] delete DHCP failed %v", err)
-		return diag.Errorf(errors.DeleteDhcpOperationFailed, dhcpID, err)
+		return fmt.Errorf(errors.DeleteDhcpOperationFailed, dhcpID, err)
 	}
-	_, err = waitForIBMPIDhcpDeleted(ctx, client, dhcpID, cloudInstanceID, d.Timeout(schema.TimeoutDelete))
+	_, err = waitForIBMPIDhcpDeleted(context.TODO(), client, dhcpID, cloudInstanceID, d.Timeout(schema.TimeoutDelete))
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId("")
@@ -216,7 +215,7 @@ func waitForIBMPIDhcpStatus(ctx context.Context, client *st.IBMPIDhcpClient, dhc
 		Delay:      10 * time.Second,
 		MinTimeout: 10 * time.Second,
 	}
-	return stateConf.WaitForStateContext(ctx)
+	return stateConf.WaitForState()
 }
 
 func waitForIBMPIDhcpDeleted(ctx context.Context, client *st.IBMPIDhcpClient, dhcpID, cloudInstanceID string, timeout time.Duration) (interface{}, error) {
@@ -235,5 +234,5 @@ func waitForIBMPIDhcpDeleted(ctx context.Context, client *st.IBMPIDhcpClient, dh
 		Delay:      10 * time.Second,
 		MinTimeout: 10 * time.Second,
 	}
-	return stateConf.WaitForStateContext(ctx)
+	return stateConf.WaitForState()
 }

@@ -2,20 +2,21 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDRedirectURLs() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Redirect URIs that can be used as callbacks of App ID authentication flow",
-		CreateContext: resourceIBMAppIDRedirectURLsCreate,
-		ReadContext:   resourceIBMAppIDRedirectURLsRead,
-		UpdateContext: resourceIBMAppIDRedirectURLsUpdate,
-		DeleteContext: resourceIBMAppIDRedirectURLsDelete,
+		Description: "Redirect URIs that can be used as callbacks of App ID authentication flow",
+		Create:      resourceIBMAppIDRedirectURLsCreate,
+		Read:        resourceIBMAppIDRedirectURLsRead,
+		Update:      resourceIBMAppIDRedirectURLsUpdate,
+		Delete:      resourceIBMAppIDRedirectURLsDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -36,24 +37,24 @@ func resourceIBMAppIDRedirectURLs() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDRedirectURLsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRedirectURLsRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	urls, resp, err := appIDClient.GetRedirectUrisWithContext(ctx, &appid.GetRedirectUrisOptions{
+	urls, resp, err := appIDClient.GetRedirectUrisWithContext(context.TODO(), &appid.GetRedirectUrisOptions{
 		TenantID: &tenantID,
 	})
 	if err != nil {
-		return diag.Errorf("Error loading AppID Cloud Directory redirect urls: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Cloud Directory redirect urls: %s\n%s", err, resp)
 	}
 
 	if err := d.Set("urls", urls.RedirectUris); err != nil {
-		return diag.Errorf("Error setting AppID Cloud Directory redirect urls: %s", err)
+		return fmt.Errorf("Error setting AppID Cloud Directory redirect urls: %s", err)
 	}
 
 	d.Set("tenant_id", tenantID)
@@ -61,18 +62,18 @@ func resourceIBMAppIDRedirectURLsRead(ctx context.Context, d *schema.ResourceDat
 	return nil
 }
 
-func resourceIBMAppIDRedirectURLsCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRedirectURLsCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	urls := d.Get("urls")
 
 	redirectURLs := expandStringList(urls.([]interface{}))
-	resp, err := appIDClient.UpdateRedirectUrisWithContext(ctx, &appid.UpdateRedirectUrisOptions{
+	resp, err := appIDClient.UpdateRedirectUrisWithContext(context.TODO(), &appid.UpdateRedirectUrisOptions{
 		TenantID: &tenantID,
 		RedirectUrisArray: &appid.RedirectURIConfig{
 			RedirectUris: redirectURLs,
@@ -80,25 +81,25 @@ func resourceIBMAppIDRedirectURLsCreate(ctx context.Context, d *schema.ResourceD
 	})
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID Cloud Directory redirect URLs: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID Cloud Directory redirect URLs: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
-	return resourceIBMAppIDRedirectURLsRead(ctx, d, meta)
+	return resourceIBMAppIDRedirectURLsRead(d, meta)
 }
 
-func resourceIBMAppIDRedirectURLsUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRedirectURLsUpdate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	urls := d.Get("urls")
 
 	redirectURLs := expandStringList(urls.([]interface{}))
-	resp, err := appIDClient.UpdateRedirectUrisWithContext(ctx, &appid.UpdateRedirectUrisOptions{
+	resp, err := appIDClient.UpdateRedirectUrisWithContext(context.TODO(), &appid.UpdateRedirectUrisOptions{
 		TenantID: &tenantID,
 		RedirectUrisArray: &appid.RedirectURIConfig{
 			RedirectUris: redirectURLs,
@@ -106,22 +107,22 @@ func resourceIBMAppIDRedirectURLsUpdate(ctx context.Context, d *schema.ResourceD
 	})
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID Cloud Directory redirect URLs: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID Cloud Directory redirect URLs: %s\n%s", err, resp)
 	}
 
-	return resourceIBMAppIDRedirectURLsRead(ctx, d, meta)
+	return resourceIBMAppIDRedirectURLsRead(d, meta)
 }
 
-func resourceIBMAppIDRedirectURLsDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRedirectURLsDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	resp, err := appIDClient.UpdateRedirectUrisWithContext(ctx, &appid.UpdateRedirectUrisOptions{
+	resp, err := appIDClient.UpdateRedirectUrisWithContext(context.TODO(), &appid.UpdateRedirectUrisOptions{
 		TenantID: &tenantID,
 		RedirectUrisArray: &appid.RedirectURIConfig{
 			RedirectUris: []string{},
@@ -129,7 +130,7 @@ func resourceIBMAppIDRedirectURLsDelete(ctx context.Context, d *schema.ResourceD
 	})
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID Cloud Directory redirect URLs: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID Cloud Directory redirect URLs: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

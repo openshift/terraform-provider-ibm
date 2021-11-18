@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/scc-go-sdk/findingsv1"
 )
 
 func dataSourceIBMSccSiOccurrences() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccSiOccurrencesRead,
+		Read: dataSourceIBMSccSiOccurrencesRead,
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -307,15 +306,15 @@ func dataSourceIBMSccSiOccurrencesValidator() *ResourceValidator {
 	return &ibmSccSiOccurrencesDataSourceValidator
 }
 
-func dataSourceIBMSccSiOccurrencesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccSiOccurrencesRead(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := d.Get("account_id").(string)
@@ -337,10 +336,10 @@ func dataSourceIBMSccSiOccurrencesRead(context context.Context, d *schema.Resour
 
 	listOccurrencesOptions.SetProviderID(d.Get("provider_id").(string))
 
-	apiListOccurrencesResponse, response, err := findingsClient.ListOccurrencesWithContext(context, listOccurrencesOptions)
+	apiListOccurrencesResponse, response, err := findingsClient.ListOccurrencesWithContext(context.TODO(), listOccurrencesOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListOccurrencesWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ListOccurrencesWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ListOccurrencesWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(dataSourceIBMSccSiOccurrencesID(d))
@@ -348,11 +347,11 @@ func dataSourceIBMSccSiOccurrencesRead(context context.Context, d *schema.Resour
 	if apiListOccurrencesResponse.Occurrences != nil {
 		err = d.Set("occurrences", dataSourceAPIListOccurrencesResponseFlattenOccurrences(apiListOccurrencesResponse.Occurrences))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting occurrences %s", err))
+			return fmt.Errorf("Error setting occurrences %s", err)
 		}
 	}
 	if err = d.Set("next_page_token", apiListOccurrencesResponse.NextPageToken); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting next_page_token: %s", err))
+		return fmt.Errorf("Error setting next_page_token: %s", err)
 	}
 
 	return nil

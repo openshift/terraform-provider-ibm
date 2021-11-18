@@ -2,22 +2,23 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func resourceIBMAppIDMFAChannel() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Update MFA channel configuration",
-		ReadContext:   resourceIBMAppIDMFAChannelRead,
-		CreateContext: resourceIBMAppIDMFAChannelCreate,
-		UpdateContext: resourceIBMAppIDMFAChannelCreate,
-		DeleteContext: resourceIBMAppIDMFAChannelDelete,
+		Description: "Update MFA channel configuration",
+		Read:        resourceIBMAppIDMFAChannelRead,
+		Create:      resourceIBMAppIDMFAChannelCreate,
+		Update:      resourceIBMAppIDMFAChannelCreate,
+		Delete:      resourceIBMAppIDMFAChannelDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -63,21 +64,21 @@ func resourceIBMAppIDMFAChannel() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDMFAChannelRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDMFAChannelRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	ch, resp, err := appIDClient.ListChannelsWithContext(ctx, &appid.ListChannelsOptions{
+	ch, resp, err := appIDClient.ListChannelsWithContext(context.TODO(), &appid.ListChannelsOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID MFA channels: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID MFA channels: %s\n%s", err, resp)
 	}
 
 	for _, channel := range ch.Channels {
@@ -93,7 +94,7 @@ func resourceIBMAppIDMFAChannelRead(ctx context.Context, d *schema.ResourceData,
 			}
 
 			if err := d.Set("sms_config", []interface{}{config}); err != nil {
-				return diag.Errorf("Error setting AppID MFA channel config: %s", err)
+				return fmt.Errorf("Error setting AppID MFA channel config: %s", err)
 			}
 		}
 	}
@@ -103,11 +104,11 @@ func resourceIBMAppIDMFAChannelRead(ctx context.Context, d *schema.ResourceData,
 	return nil
 }
 
-func resourceIBMAppIDMFAChannelCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDMFAChannelCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -128,22 +129,22 @@ func resourceIBMAppIDMFAChannelCreate(ctx context.Context, d *schema.ResourceDat
 		}
 	}
 
-	_, resp, err := appIDClient.UpdateChannelWithContext(ctx, input)
+	_, resp, err := appIDClient.UpdateChannelWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID MFA configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID MFA configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDMFAChannelRead(ctx, d, meta)
+	return resourceIBMAppIDMFAChannelRead(d, meta)
 }
 
-func resourceIBMAppIDMFAChannelDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDMFAChannelDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -161,10 +162,10 @@ func resourceIBMAppIDMFAChannelDelete(ctx context.Context, d *schema.ResourceDat
 		},
 	}
 
-	_, resp, err := appIDClient.UpdateChannelWithContext(ctx, input)
+	_, resp, err := appIDClient.UpdateChannelWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID MFA configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID MFA configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

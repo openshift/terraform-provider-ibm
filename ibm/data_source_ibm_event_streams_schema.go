@@ -9,13 +9,12 @@ import (
 	"log"
 
 	"github.com/IBM/eventstreams-go-sdk/pkg/schemaregistryv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMEventStreamsSchema() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMEventStreamsSchemaRead,
+		Read: dataSourceIBMEventStreamsSchemaRead,
 
 		Schema: map[string]*schema.Schema{
 			"resource_instance_id": &schema.Schema{
@@ -37,17 +36,17 @@ func dataSourceIBMEventStreamsSchema() *schema.Resource {
 	}
 }
 
-func dataSourceIBMEventStreamsSchemaRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMEventStreamsSchemaRead(d *schema.ResourceData, meta interface{}) error {
 	schemaregistryClient, err := meta.(ClientSession).ESschemaRegistrySession()
 	if err != nil {
 		log.Printf("[DEBUG] dataSourceIBMEventStreamsSchemaRead schemaregistryClient err %s", err)
-		return diag.FromErr(err)
+		return err
 	}
 
 	adminURL, instanceCRN, err := getInstanceURL(d, meta)
 	if err != nil {
 		log.Printf("[DEBUG] dataSourceIBMEventStreamsSchemaRead getInstanceURL err %s", err)
-		return diag.FromErr(err)
+		return err
 	}
 	schemaregistryClient.SetServiceURL(adminURL)
 
@@ -56,10 +55,10 @@ func dataSourceIBMEventStreamsSchemaRead(context context.Context, d *schema.Reso
 	schemaID := d.Get("schema_id").(string)
 	getLatestSchemaOptions.SetID(schemaID)
 
-	schema, response, err := schemaregistryClient.GetLatestSchemaWithContext(context, getLatestSchemaOptions)
+	schema, response, err := schemaregistryClient.GetLatestSchemaWithContext(context.TODO(), getLatestSchemaOptions)
 	if err != nil || schema == nil {
 		log.Printf("[DEBUG] GetLatestSchemaWithContext failed with error: %s and response:\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetLatestSchemaWithContext failed with error: %s\n and response:%s", err, response))
+		return fmt.Errorf("GetLatestSchemaWithContext failed with error: %s\n and response:%s", err, response)
 	}
 	uniqueID := getUniqueSchemaID(instanceCRN, schemaID)
 

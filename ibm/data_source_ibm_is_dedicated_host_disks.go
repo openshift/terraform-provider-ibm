@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsDedicatedHostDisks() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsDedicatedHostDisksRead,
+		Read: dataSourceIbmIsDedicatedHostDisksRead,
 
 		Schema: map[string]*schema.Schema{
 			"dedicated_host": &schema.Schema{
@@ -139,20 +138,20 @@ func dataSourceIbmIsDedicatedHostDisks() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsDedicatedHostDisksRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsDedicatedHostDisksRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listDedicatedHostDisksOptions := &vpcv1.ListDedicatedHostDisksOptions{}
 
 	listDedicatedHostDisksOptions.SetDedicatedHostID(d.Get("dedicated_host").(string))
 
-	dedicatedHostDiskCollection, response, err := vpcClient.ListDedicatedHostDisksWithContext(context, listDedicatedHostDisksOptions)
+	dedicatedHostDiskCollection, response, err := vpcClient.ListDedicatedHostDisksWithContext(context.TODO(), listDedicatedHostDisksOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListDedicatedHostDisksWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(dataSourceIbmIsDedicatedHostDisksID(d))
@@ -160,7 +159,7 @@ func dataSourceIbmIsDedicatedHostDisksRead(context context.Context, d *schema.Re
 	if dedicatedHostDiskCollection.Disks != nil {
 		err = d.Set("disks", dataSourceDedicatedHostDiskCollectionFlattenDisks(dedicatedHostDiskCollection.Disks))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting disks %s", err))
+			return fmt.Errorf("Error setting disks %s", err)
 		}
 	}
 

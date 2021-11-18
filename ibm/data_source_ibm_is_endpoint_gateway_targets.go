@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"github.com/IBM/platform-services-go-sdk/catalogmanagementv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const (
@@ -30,7 +29,7 @@ const (
 
 func dataSourceIBMISEndpointGatewayTargets() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMISEndpointGatewayTargetsRead,
+		Read: dataSourceIBMISEndpointGatewayTargetsRead,
 
 		Schema: map[string]*schema.Schema{
 			isVPEResources: {
@@ -82,15 +81,15 @@ func dataSourceIBMISEndpointGatewayTargets() *schema.Resource {
 	}
 }
 
-func dataSourceIBMISEndpointGatewayTargetsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMISEndpointGatewayTargetsRead(d *schema.ResourceData, meta interface{}) error {
 	bmxSess, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	region := bmxSess.Config.Region
 	catalogManagementClient, err := meta.(ClientSession).CatalogManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getCatalogOptions := &catalogmanagementv1.SearchObjectsOptions{}
@@ -106,10 +105,10 @@ func dataSourceIBMISEndpointGatewayTargetsRead(context context.Context, d *schem
 		if start != int64(0) {
 			getCatalogOptions.Offset = &start
 		}
-		search, response, err := catalogManagementClient.SearchObjectsWithContext(context, getCatalogOptions)
+		search, response, err := catalogManagementClient.SearchObjectsWithContext(context.TODO(), getCatalogOptions)
 		if err != nil {
 			log.Printf("[DEBUG] GetCatalogWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		next := search.Next
 		if next == nil {

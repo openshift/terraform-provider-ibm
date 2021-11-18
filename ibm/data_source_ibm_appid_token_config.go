@@ -5,15 +5,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDTokenConfig() *schema.Resource {
 	return &schema.Resource{
 		Description: "`ibm_appid_token_config` data source can be used to retrieve the token configuration for specific AppID tenant. [Learn more.](https://cloud.ibm.com/docs/appid?topic=appid-customizing-tokens){target=_blank}",
-		ReadContext: dataSourceIBMAppIDTokenConfigRead,
+		Read:        dataSourceIBMAppIDTokenConfigRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Type:        schema.TypeString,
@@ -114,30 +115,30 @@ func flattenTokenClaims(c []appid.TokenClaimMapping) []interface{} {
 	return s
 }
 
-func dataSourceIBMAppIDTokenConfigRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDTokenConfigRead(d *schema.ResourceData, meta interface{}) error {
 	appidClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	tokenConfig, resp, err := appidClient.GetTokensConfigWithContext(ctx, &appid.GetTokensConfigOptions{TenantID: &tenantID})
+	tokenConfig, resp, err := appidClient.GetTokensConfigWithContext(context.TODO(), &appid.GetTokensConfigOptions{TenantID: &tenantID})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID token config: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID token config: %s\n%s", err, resp)
 	}
 
 	if tokenConfig.AccessTokenClaims != nil {
 		if err := d.Set("access_token_claim", flattenTokenClaims(tokenConfig.AccessTokenClaims)); err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
 	if tokenConfig.IDTokenClaims != nil {
 		if err := d.Set("id_token_claim", flattenTokenClaims(tokenConfig.IDTokenClaims)); err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	}
 

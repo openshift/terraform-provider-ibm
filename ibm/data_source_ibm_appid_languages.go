@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDLanguages() *schema.Resource {
 	return &schema.Resource{
 		Description: "User localization configuration",
-		ReadContext: dataSourceIBMAppIDLanguagesRead,
+		Read:        dataSourceIBMAppIDLanguagesRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -29,21 +30,21 @@ func dataSourceIBMAppIDLanguages() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDLanguagesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDLanguagesRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	langs, resp, err := appIDClient.GetLocalizationWithContext(ctx, &appid.GetLocalizationOptions{
+	langs, resp, err := appIDClient.GetLocalizationWithContext(context.TODO(), &appid.GetLocalizationOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID languages: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID languages: %s\n%s", err, resp)
 	}
 
 	d.Set("languages", langs.Languages)

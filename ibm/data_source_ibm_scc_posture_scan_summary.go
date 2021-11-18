@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/scc-go-sdk/posturemanagementv1"
 )
 
 func dataSourceIBMSccPostureScansSummary() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccPostureScansSummaryRead,
+		Read: dataSourceIBMSccPostureScansSummaryRead,
 
 		Schema: map[string]*schema.Schema{
 			"scan_id": &schema.Schema{
@@ -321,10 +320,10 @@ func dataSourceIBMSccPostureScansSummary() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccPostureScansSummaryRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccPostureScansSummaryRead(d *schema.ResourceData, meta interface{}) error {
 	postureManagementClient, err := meta.(ClientSession).PostureManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	scansSummaryOptions := &posturemanagementv1.ScansSummaryOptions{}
@@ -332,27 +331,27 @@ func dataSourceIBMSccPostureScansSummaryRead(context context.Context, d *schema.
 	scansSummaryOptions.SetScanID(d.Get("scan_id").(string))
 	scansSummaryOptions.SetProfileID(d.Get("profile_id").(string))
 
-	summary, response, err := postureManagementClient.ScansSummaryWithContext(context, scansSummaryOptions)
+	summary, response, err := postureManagementClient.ScansSummaryWithContext(context.TODO(), scansSummaryOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ScansSummaryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ScansSummaryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ScansSummaryWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(dataSourceIBMSccPostureScansSummaryID(d))
 	if err = d.Set("discover_id", summary.DiscoverID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting discover_id: %s", err))
+		return fmt.Errorf("Error setting discover_id: %s", err)
 	}
 	if err = d.Set("profile_name", summary.ProfileName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting profile_name: %s", err))
+		return fmt.Errorf("Error setting profile_name: %s", err)
 	}
 	if err = d.Set("scope_id", summary.ScopeID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting scope_id: %s", err))
+		return fmt.Errorf("Error setting scope_id: %s", err)
 	}
 
 	if summary.Controls != nil {
 		err = d.Set("controls", dataSourceSummaryFlattenControls(summary.Controls))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting controls %s", err))
+			return fmt.Errorf("Error setting controls %s", err)
 		}
 	}
 

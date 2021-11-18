@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/schematics-go-sdk/schematicsv1"
@@ -17,11 +16,11 @@ import (
 
 func resourceIBMSchematicsResourceQuery() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMSchematicsResourceQueryCreate,
-		ReadContext:   resourceIBMSchematicsResourceQueryRead,
-		UpdateContext: resourceIBMSchematicsResourceQueryUpdate,
-		DeleteContext: resourceIBMSchematicsResourceQueryDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMSchematicsResourceQueryCreate,
+		Read:     resourceIBMSchematicsResourceQueryRead,
+		Update:   resourceIBMSchematicsResourceQueryUpdate,
+		Delete:   resourceIBMSchematicsResourceQueryDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"type": &schema.Schema{
@@ -117,10 +116,10 @@ func resourceIBMSchematicsResourceQueryValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMSchematicsResourceQueryCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsResourceQueryCreate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createResourceQueryOptions := &schematicsv1.CreateResourceQueryOptions{}
@@ -141,15 +140,15 @@ func resourceIBMSchematicsResourceQueryCreate(context context.Context, d *schema
 		createResourceQueryOptions.SetQueries(queries)
 	}
 
-	resourceQueryRecord, response, err := schematicsClient.CreateResourceQueryWithContext(context, createResourceQueryOptions)
+	resourceQueryRecord, response, err := schematicsClient.CreateResourceQueryWithContext(context.TODO(), createResourceQueryOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateResourceQueryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateResourceQueryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateResourceQueryWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*resourceQueryRecord.ID)
 
-	return resourceIBMSchematicsResourceQueryRead(context, d, meta)
+	return resourceIBMSchematicsResourceQueryRead(d, meta)
 }
 
 func resourceIBMSchematicsResourceQueryMapToResourceQuery(resourceQueryMap map[string]interface{}) schematicsv1.ResourceQuery {
@@ -193,31 +192,31 @@ func resourceIBMSchematicsResourceQueryMapToResourceQueryParam(resourceQueryPara
 	return resourceQueryParam
 }
 
-func resourceIBMSchematicsResourceQueryRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsResourceQueryRead(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getResourcesQueryOptions := &schematicsv1.GetResourcesQueryOptions{}
 
 	getResourcesQueryOptions.SetQueryID(d.Id())
 
-	resourceQueryRecord, response, err := schematicsClient.GetResourcesQueryWithContext(context, getResourcesQueryOptions)
+	resourceQueryRecord, response, err := schematicsClient.GetResourcesQueryWithContext(context.TODO(), getResourcesQueryOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetResourcesQueryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetResourcesQueryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetResourcesQueryWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("type", resourceQueryRecord.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting type: %s", err))
+		return fmt.Errorf("Error setting type: %s", err)
 	}
 	if err = d.Set("name", resourceQueryRecord.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if resourceQueryRecord.Queries != nil {
 		queries := []map[string]interface{}{}
@@ -226,20 +225,20 @@ func resourceIBMSchematicsResourceQueryRead(context context.Context, d *schema.R
 			queries = append(queries, queriesItemMap)
 		}
 		if err = d.Set("queries", queries); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting queries: %s", err))
+			return fmt.Errorf("Error setting queries: %s", err)
 		}
 	}
 	if err = d.Set("created_at", dateTimeToString(resourceQueryRecord.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", resourceQueryRecord.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("updated_at", dateTimeToString(resourceQueryRecord.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+		return fmt.Errorf("Error setting updated_at: %s", err)
 	}
 	if err = d.Set("updated_by", resourceQueryRecord.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+		return fmt.Errorf("Error setting updated_by: %s", err)
 	}
 
 	return nil
@@ -283,10 +282,10 @@ func resourceIBMSchematicsResourceQueryResourceQueryParamToMap(resourceQueryPara
 	return resourceQueryParamMap
 }
 
-func resourceIBMSchematicsResourceQueryUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsResourceQueryUpdate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	replaceResourcesQueryOptions := &schematicsv1.ReplaceResourcesQueryOptions{}
@@ -308,29 +307,29 @@ func resourceIBMSchematicsResourceQueryUpdate(context context.Context, d *schema
 		replaceResourcesQueryOptions.SetQueries(queries)
 	}
 
-	_, response, err := schematicsClient.ReplaceResourcesQueryWithContext(context, replaceResourcesQueryOptions)
+	_, response, err := schematicsClient.ReplaceResourcesQueryWithContext(context.TODO(), replaceResourcesQueryOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ReplaceResourcesQueryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ReplaceResourcesQueryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ReplaceResourcesQueryWithContext failed %s\n%s", err, response)
 	}
 
-	return resourceIBMSchematicsResourceQueryRead(context, d, meta)
+	return resourceIBMSchematicsResourceQueryRead(d, meta)
 }
 
-func resourceIBMSchematicsResourceQueryDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsResourceQueryDelete(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteResourcesQueryOptions := &schematicsv1.DeleteResourcesQueryOptions{}
 
 	deleteResourcesQueryOptions.SetQueryID(d.Id())
 
-	response, err := schematicsClient.DeleteResourcesQueryWithContext(context, deleteResourcesQueryOptions)
+	response, err := schematicsClient.DeleteResourcesQueryWithContext(context.TODO(), deleteResourcesQueryOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteResourcesQueryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteResourcesQueryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteResourcesQueryWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

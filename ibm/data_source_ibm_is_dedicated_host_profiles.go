@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsDedicatedHostProfiles() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsDedicatedHostProfilesRead,
+		Read: dataSourceIbmIsDedicatedHostProfilesRead,
 
 		Schema: map[string]*schema.Schema{
 			"profiles": &schema.Schema{
@@ -321,10 +320,10 @@ func dataSourceIbmIsDedicatedHostProfiles() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsDedicatedHostProfilesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsDedicatedHostProfilesRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listDedicatedHostProfilesOptions := &vpcv1.ListDedicatedHostProfilesOptions{}
@@ -335,10 +334,10 @@ func dataSourceIbmIsDedicatedHostProfilesRead(context context.Context, d *schema
 		if start != "" {
 			listDedicatedHostProfilesOptions.Start = &start
 		}
-		dedicatedHostProfileCollection, response, err := vpcClient.ListDedicatedHostProfilesWithContext(context, listDedicatedHostProfilesOptions)
+		dedicatedHostProfileCollection, response, err := vpcClient.ListDedicatedHostProfilesWithContext(context.TODO(), listDedicatedHostProfilesOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListDedicatedHostProfilesWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		start = GetNext(dedicatedHostProfileCollection.Next)
 		allrecs = append(allrecs, dedicatedHostProfileCollection.Profiles...)
@@ -353,11 +352,11 @@ func dataSourceIbmIsDedicatedHostProfilesRead(context context.Context, d *schema
 
 		err = d.Set("profiles", dataSourceDedicatedHostProfileCollectionFlattenProfiles(allrecs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting profiles %s", err))
+			return fmt.Errorf("Error setting profiles %s", err)
 		}
 
 		if err = d.Set("total_count", len(allrecs)); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting total_count: %s", err))
+			return fmt.Errorf("Error setting total_count: %s", err)
 		}
 	}
 	return nil

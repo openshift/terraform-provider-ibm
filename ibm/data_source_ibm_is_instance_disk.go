@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsInstanceDisk() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsInstanceDiskRead,
+		Read: dataSourceIbmIsInstanceDiskRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance": &schema.Schema{
@@ -63,10 +62,10 @@ func dataSourceIbmIsInstanceDisk() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsInstanceDiskRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsInstanceDiskRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getInstanceDiskOptions := &vpcv1.GetInstanceDiskOptions{}
@@ -74,30 +73,30 @@ func dataSourceIbmIsInstanceDiskRead(context context.Context, d *schema.Resource
 	getInstanceDiskOptions.SetInstanceID(d.Get("instance").(string))
 	getInstanceDiskOptions.SetID(d.Get("disk").(string))
 
-	instanceDisk, response, err := vpcClient.GetInstanceDiskWithContext(context, getInstanceDiskOptions)
+	instanceDisk, response, err := vpcClient.GetInstanceDiskWithContext(context.TODO(), getInstanceDiskOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetInstanceDiskWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*instanceDisk.ID)
 	if err = d.Set("created_at", instanceDisk.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("href", instanceDisk.Href); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+		return fmt.Errorf("Error setting href: %s", err)
 	}
 	if err = d.Set("interface_type", instanceDisk.InterfaceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting interface_type: %s", err))
+		return fmt.Errorf("Error setting interface_type: %s", err)
 	}
 	if err = d.Set("name", instanceDisk.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("resource_type", instanceDisk.ResourceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_type: %s", err))
+		return fmt.Errorf("Error setting resource_type: %s", err)
 	}
 	if err = d.Set("size", instanceDisk.Size); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting size: %s", err))
+		return fmt.Errorf("Error setting size: %s", err)
 	}
 
 	return nil

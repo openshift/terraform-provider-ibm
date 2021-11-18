@@ -4,14 +4,12 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/softlayer/softlayer-go/datatypes"
 	"github.com/softlayer/softlayer-go/filter"
 	"github.com/softlayer/softlayer-go/services"
@@ -20,7 +18,7 @@ import (
 
 func dataSourceIBMComputeReservedCapacity() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMComputeReservedCapacityRead,
+		Read: dataSourceIBMComputeReservedCapacityRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -85,7 +83,7 @@ func dataSourceIBMComputeReservedCapacity() *schema.Resource {
 	}
 }
 
-func dataSourceIBMComputeReservedCapacityRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMComputeReservedCapacityRead(d *schema.ResourceData, meta interface{}) error {
 	sess := meta.(ClientSession).SoftLayerSession()
 	service := services.GetAccountService(sess)
 
@@ -97,11 +95,11 @@ func dataSourceIBMComputeReservedCapacityRead(context context.Context, d *schema
 		Mask("id,name,instancesCount,createDate,backendRouter[hostname,datacenter[name]],occupiedInstances[guest[id,domain,hostname]],instances[billingItem[item[keyName]]]").GetReservedCapacityGroups()
 
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[Error] retrieving placement group: %s", err))
+		return fmt.Errorf("[Error] retrieving placement group: %s", err)
 	}
 
 	if len(grps) == 0 {
-		return diag.FromErr(fmt.Errorf("[Error] No reserved capacity found with name [%s]", name))
+		return fmt.Errorf("[Error] No reserved capacity found with name [%s]", name)
 	}
 
 	var grp datatypes.Virtual_ReservedCapacityGroup
@@ -110,10 +108,10 @@ func dataSourceIBMComputeReservedCapacityRead(context context.Context, d *schema
 		if mostRecent {
 			grp = mostRecentReservedCapacity(grps)
 		} else {
-			return diag.FromErr(fmt.Errorf(
+			return fmt.Errorf(
 				"[Error] More than one reserved capacity found with name "+
 					"matching [%s]. Set 'most_recent' to true in your configuration to force the most recent reserved capacity "+
-					"to be used", name))
+					"to be used", name)
 		}
 	} else {
 		grp = grps[0]

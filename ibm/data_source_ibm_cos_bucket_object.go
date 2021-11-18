@@ -5,7 +5,6 @@ package ibm
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -13,13 +12,12 @@ import (
 
 	"github.com/IBM/ibm-cos-sdk-go/aws"
 	"github.com/IBM/ibm-cos-sdk-go/service/s3"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMCosBucketObject() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMCosBucketObjectRead,
+		Read: dataSourceIBMCosBucketObjectRead,
 
 		Schema: map[string]*schema.Schema{
 			"body": {
@@ -81,7 +79,7 @@ func dataSourceIBMCosBucketObject() *schema.Resource {
 	}
 }
 
-func dataSourceIBMCosBucketObjectRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func dataSourceIBMCosBucketObjectRead(d *schema.ResourceData, m interface{}) error {
 	bucketCRN := d.Get("bucket_crn").(string)
 	bucketName := strings.Split(bucketCRN, ":bucket:")[1]
 	instanceCRN := fmt.Sprintf("%s::", strings.Split(bucketCRN, ":bucket:")[0])
@@ -91,12 +89,12 @@ func dataSourceIBMCosBucketObjectRead(ctx context.Context, d *schema.ResourceDat
 
 	bxSession, err := m.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	s3Client, err := getS3Client(bxSession, bucketLocation, endpointType, instanceCRN)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	objectKey := d.Get("key").(string)
@@ -107,7 +105,7 @@ func dataSourceIBMCosBucketObjectRead(ctx context.Context, d *schema.ResourceDat
 
 	out, err := s3Client.HeadObject(headInput)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed getting COS bucket (%s) object (%s): %w", bucketName, objectKey, err))
+		return fmt.Errorf("failed getting COS bucket (%s) object (%s): %w", bucketName, objectKey, err)
 	}
 
 	log.Printf("[DEBUG] Received COS object: %s", out)
@@ -128,13 +126,13 @@ func dataSourceIBMCosBucketObjectRead(ctx context.Context, d *schema.ResourceDat
 		}
 		out, err := s3Client.GetObject(&getInput)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("failed getting COS object: %w", err))
+			return fmt.Errorf("failed getting COS object: %w", err)
 		}
 
 		buf := new(bytes.Buffer)
 		bytesRead, err := buf.ReadFrom(out.Body)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("failed reading content of COS bucket (%s) object (%s): %w", bucketName, objectKey, err))
+			return fmt.Errorf("failed reading content of COS bucket (%s) object (%s): %w", bucketName, objectKey, err)
 		}
 		log.Printf("[INFO] Saving %d bytes from COS bucket (%s) object (%s)", bytesRead, bucketName, objectKey)
 		d.Set("body", buf.String())

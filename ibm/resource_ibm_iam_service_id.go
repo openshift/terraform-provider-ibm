@@ -4,21 +4,19 @@
 package ibm
 
 import (
-	"context"
 	"log"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMIAMServiceID() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMIAMServiceIDCreate,
-		ReadContext:   resourceIBMIAMServiceIDRead,
-		UpdateContext: resourceIBMIAMServiceIDUpdate,
-		DeleteContext: resourceIBMIAMServiceIDDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMIAMServiceIDCreate,
+		Read:     resourceIBMIAMServiceIDRead,
+		Update:   resourceIBMIAMServiceIDUpdate,
+		Delete:   resourceIBMIAMServiceIDDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -65,17 +63,17 @@ func resourceIBMIAMServiceID() *schema.Resource {
 	}
 }
 
-func resourceIBMIAMServiceIDCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMServiceIDCreate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	name := d.Get("name").(string)
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createServiceIDOptions := iamidentityv1.CreateServiceIDOptions{
@@ -91,17 +89,17 @@ func resourceIBMIAMServiceIDCreate(context context.Context, d *schema.ResourceDa
 	serviceID, resp, err := iamIdentityClient.CreateServiceID(&createServiceIDOptions)
 	if err != nil || serviceID == nil {
 		log.Printf("Error creating serviceID: %s, %s", err, resp)
-		return diag.FromErr(err)
+		return err
 	}
 	d.SetId(*serviceID.ID)
 
-	return resourceIBMIAMServiceIDRead(context, d, meta)
+	return resourceIBMIAMServiceIDRead(d, meta)
 }
 
-func resourceIBMIAMServiceIDRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMServiceIDRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	serviceIDUUID := d.Id()
 	getServiceIDOptions := iamidentityv1.GetServiceIDOptions{
@@ -114,7 +112,7 @@ func resourceIBMIAMServiceIDRead(context context.Context, d *schema.ResourceData
 			return nil
 		}
 		log.Printf("Error retrieving serviceID: %s %s", err, resp)
-		return diag.FromErr(err)
+		return err
 	}
 	if serviceID.Name != nil {
 		d.Set("name", *serviceID.Name)
@@ -137,11 +135,11 @@ func resourceIBMIAMServiceIDRead(context context.Context, d *schema.ResourceData
 	return nil
 }
 
-func resourceIBMIAMServiceIDUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMServiceIDUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	serviceIDUUID := d.Id()
 
@@ -168,18 +166,18 @@ func resourceIBMIAMServiceIDUpdate(context context.Context, d *schema.ResourceDa
 		_, resp, err := iamIdentityClient.UpdateServiceID(&updateServiceIDOptions)
 		if err != nil {
 			log.Printf("Error updating serviceID: %s, %s", err, resp)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
-	return resourceIBMIAMServiceIDRead(context, d, meta)
+	return resourceIBMIAMServiceIDRead(d, meta)
 
 }
 
-func resourceIBMIAMServiceIDDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMServiceIDDelete(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	serviceIDUUID := d.Id()
@@ -189,7 +187,7 @@ func resourceIBMIAMServiceIDDelete(context context.Context, d *schema.ResourceDa
 	resp, err := iamIdentityClient.DeleteServiceID(&deleteServiceIDOptions)
 	if err != nil {
 		log.Printf("Error deleting serviceID: %s %s", err, resp)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId("")

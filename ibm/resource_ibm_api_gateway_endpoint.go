@@ -11,7 +11,7 @@ import (
 
 	apigatewaysdk "github.com/IBM/apigateway-go-sdk/apigatewaycontrollerapiv1"
 	"github.com/ghodss/yaml"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMApiGatewayEndPoint() *schema.Resource {

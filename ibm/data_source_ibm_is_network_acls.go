@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIBMIsNetworkAcls() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMIsNetworkAclsRead,
+		Read: dataSourceIBMIsNetworkAclsRead,
 
 		Schema: map[string]*schema.Schema{
 			"resource_group": {
@@ -349,10 +348,10 @@ func dataSourceIBMIsNetworkAcls() *schema.Resource {
 	}
 }
 
-func dataSourceIBMIsNetworkAclsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMIsNetworkAclsRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	resource_group_id := d.Get("resource_group").(string)
 	start := ""
@@ -365,10 +364,10 @@ func dataSourceIBMIsNetworkAclsRead(context context.Context, d *schema.ResourceD
 		if start != "" {
 			listNetworkAclsOptions.Start = &start
 		}
-		networkACLCollection, response, err := vpcClient.ListNetworkAclsWithContext(context, listNetworkAclsOptions)
+		networkACLCollection, response, err := vpcClient.ListNetworkAclsWithContext(context.TODO(), listNetworkAclsOptions)
 		if err != nil || networkACLCollection == nil {
 			log.Printf("[DEBUG] ListNetworkAclsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("ListNetworkAclsWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ListNetworkAclsWithContext failed %s\n%s", err, response)
 		}
 		start = GetNext(networkACLCollection.Next)
 		allrecs = append(allrecs, networkACLCollection.NetworkAcls...)
@@ -381,7 +380,7 @@ func dataSourceIBMIsNetworkAclsRead(context context.Context, d *schema.ResourceD
 
 	err = d.Set("network_acls", dataSourceNetworkACLCollectionFlattenNetworkAcls(allrecs))
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting network_acls %s", err))
+		return fmt.Errorf("Error setting network_acls %s", err)
 	}
 
 	return nil

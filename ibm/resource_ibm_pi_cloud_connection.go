@@ -9,8 +9,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	st "github.com/IBM-Cloud/power-go-client/clients/instance"
 	"github.com/IBM-Cloud/power-go-client/errors"
@@ -25,11 +24,11 @@ const (
 
 func resourceIBMPICloudConnection() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMPICloudConnectionCreate,
-		ReadContext:   resourceIBMPICloudConnectionRead,
-		UpdateContext: resourceIBMPICloudConnectionUpdate,
-		DeleteContext: resourceIBMPICloudConnectionDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMPICloudConnectionCreate,
+		Read:     resourceIBMPICloudConnectionRead,
+		Update:   resourceIBMPICloudConnectionUpdate,
+		Delete:   resourceIBMPICloudConnectionDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(30 * time.Minute),
@@ -143,10 +142,10 @@ func resourceIBMPICloudConnection() *schema.Resource {
 	}
 }
 
-func resourceIBMPICloudConnectionCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPICloudConnectionCreate(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := d.Get(helpers.PICloudInstanceId).(string)
@@ -204,10 +203,10 @@ func resourceIBMPICloudConnectionCreate(ctx context.Context, d *schema.ResourceD
 	}
 
 	client := st.NewIBMPICloudConnectionClient(sess, cloudInstanceID)
-	cloudConnection, cloudConnectionJob, err := client.CreateWithContext(ctx, body, cloudInstanceID)
+	cloudConnection, cloudConnectionJob, err := client.CreateWithContext(context.TODO(), body, cloudInstanceID)
 	if err != nil {
 		log.Printf("[DEBUG] create cloud connection failed %v", err)
-		return diag.Errorf(errors.CreateCloudConnectionOperationFailed, cloudInstanceID, err)
+		return fmt.Errorf(errors.CreateCloudConnectionOperationFailed, cloudInstanceID, err)
 	}
 	var cloudConnectionID string
 	if cloudConnection != nil {
@@ -217,26 +216,26 @@ func resourceIBMPICloudConnectionCreate(ctx context.Context, d *schema.ResourceD
 		jobID := *cloudConnectionJob.JobRef.ID
 
 		client := st.NewIBMPIJobClient(sess, cloudInstanceID)
-		_, err = waitForIBMPIJobCompleted(ctx, client, jobID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
+		_, err = waitForIBMPIJobCompleted(context.TODO(), client, jobID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
-			return diag.Errorf(errors.CreateCloudConnectionOperationFailed, cloudInstanceID, err)
+			return fmt.Errorf(errors.CreateCloudConnectionOperationFailed, cloudInstanceID, err)
 		}
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", cloudInstanceID, cloudConnectionID))
 
-	return resourceIBMPICloudConnectionRead(ctx, d, meta)
+	return resourceIBMPICloudConnectionRead(d, meta)
 }
 
-func resourceIBMPICloudConnectionUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPICloudConnectionUpdate(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := parts[0]
@@ -248,7 +247,16 @@ func resourceIBMPICloudConnectionUpdate(ctx context.Context, d *schema.ResourceD
 	client := st.NewIBMPICloudConnectionClient(sess, cloudInstanceID)
 	jobClient := st.NewIBMPIJobClient(sess, cloudInstanceID)
 
-	if d.HasChangesExcept(helpers.PICloudConnectionNetworks) {
+	if d.HasChanges(helpers.PICloudInstanceId) ||
+		d.HasChanges(helpers.PICloudConnectionName) ||
+		d.HasChanges(helpers.PICloudConnectionSpeed) ||
+		d.HasChanges(helpers.PICloudConnectionGlobalRouting) ||
+		d.HasChanges(helpers.PICloudConnectionMetered) ||
+		d.HasChanges(helpers.PICloudConnectionClassicEnabled) ||
+		d.HasChanges(helpers.PICloudConnectionClassicGreCidr) ||
+		d.HasChanges(helpers.PICloudConnectionClassicGreDest) ||
+		d.HasChanges(helpers.PICloudConnectionVPCEnabled) ||
+		d.HasChanges(helpers.PICloudConnectionVPCCRNs) {
 
 		body := &models.CloudConnectionUpdate{
 			Name:  &ccName,
@@ -309,14 +317,14 @@ func resourceIBMPICloudConnectionUpdate(ctx context.Context, d *schema.ResourceD
 			body.Vpc = vpc
 		}
 
-		_, cloudConnectionJob, err := client.UpdateWithContext(ctx, cloudConnectionID, cloudInstanceID, body)
+		_, cloudConnectionJob, err := client.UpdateWithContext(context.TODO(), cloudConnectionID, cloudInstanceID, body)
 		if err != nil {
-			return diag.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
+			return fmt.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
 		}
 		if cloudConnectionJob != nil {
-			_, err = waitForIBMPIJobCompleted(ctx, jobClient, *cloudConnectionJob.ID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
+			_, err = waitForIBMPIJobCompleted(context.TODO(), jobClient, *cloudConnectionJob.ID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
 			if err != nil {
-				return diag.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
+				return fmt.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
 			}
 		}
 	}
@@ -330,48 +338,48 @@ func resourceIBMPICloudConnectionUpdate(ctx context.Context, d *schema.ResourceD
 
 		// call network add api for each toAdd
 		for _, n := range expandStringList(toAdd.List()) {
-			jobReference, err := client.AddNetworkWithContext(ctx, n, cloudConnectionID, cloudInstanceID)
+			jobReference, err := client.AddNetworkWithContext(context.TODO(), n, cloudConnectionID, cloudInstanceID)
 			if err != nil {
-				return diag.Errorf("failed to perform the network add operation... %v", err)
+				return fmt.Errorf("failed to perform the network add operation... %v", err)
 			}
-			_, err = waitForIBMPIJobCompleted(ctx, jobClient, *jobReference.ID, cloudInstanceID, d.Timeout(schema.TimeoutUpdate))
+			_, err = waitForIBMPIJobCompleted(context.TODO(), jobClient, *jobReference.ID, cloudInstanceID, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
-				return diag.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
+				return fmt.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
 			}
 		}
 
 		// call network delete api for each toRemove
 		for _, n := range expandStringList(toRemove.List()) {
-			jobReference, err := client.DeleteNetworkWithContext(ctx, n, cloudConnectionID, cloudInstanceID)
+			jobReference, err := client.DeleteNetworkWithContext(context.TODO(), n, cloudConnectionID, cloudInstanceID)
 			if err != nil {
-				return diag.Errorf("failed to perform the network delete operation... %v", err)
+				return fmt.Errorf("failed to perform the network delete operation... %v", err)
 			}
-			_, err = waitForIBMPIJobCompleted(ctx, jobClient, *jobReference.ID, cloudInstanceID, d.Timeout(schema.TimeoutUpdate))
+			_, err = waitForIBMPIJobCompleted(context.TODO(), jobClient, *jobReference.ID, cloudInstanceID, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
-				return diag.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
+				return fmt.Errorf(errors.UpdateCloudConnectionOperationFailed, cloudConnectionID, err)
 			}
 		}
 	}
 
-	return resourceIBMPICloudConnectionRead(ctx, d, meta)
+	return resourceIBMPICloudConnectionRead(d, meta)
 }
 
-func resourceIBMPICloudConnectionRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPICloudConnectionRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := parts[0]
 	cloudConnectionID := parts[1]
 
 	client := st.NewIBMPICloudConnectionClient(sess, cloudInstanceID)
-	cloudConnection, err := client.GetWithContext(ctx, cloudConnectionID, cloudInstanceID)
+	cloudConnection, err := client.GetWithContext(context.TODO(), cloudConnectionID, cloudInstanceID)
 	if err != nil {
 		switch err.(type) {
 		case *p_cloud_cloud_connections.PcloudCloudconnectionsGetNotFound:
@@ -380,7 +388,7 @@ func resourceIBMPICloudConnectionRead(ctx context.Context, d *schema.ResourceDat
 			return nil
 		}
 		log.Printf("[DEBUG] get cloud connection failed %v", err)
-		return diag.Errorf(errors.GetCloudConnectionOperationFailed, cloudConnectionID, err)
+		return fmt.Errorf(errors.GetCloudConnectionOperationFailed, cloudConnectionID, err)
 	}
 
 	d.Set(PICloudConnectionId, cloudConnection.CloudConnectionID)
@@ -422,22 +430,22 @@ func resourceIBMPICloudConnectionRead(ctx context.Context, d *schema.ResourceDat
 
 	return nil
 }
-func resourceIBMPICloudConnectionDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPICloudConnectionDelete(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := parts[0]
 	cloudConnectionID := parts[1]
 
 	client := st.NewIBMPICloudConnectionClient(sess, cloudInstanceID)
-	_, err = client.GetWithContext(ctx, cloudConnectionID, cloudInstanceID)
+	_, err = client.GetWithContext(context.TODO(), cloudConnectionID, cloudInstanceID)
 	if err != nil {
 		switch err.(type) {
 		case *p_cloud_cloud_connections.PcloudCloudconnectionsGetNotFound:
@@ -446,22 +454,22 @@ func resourceIBMPICloudConnectionDelete(ctx context.Context, d *schema.ResourceD
 			return nil
 		}
 		log.Printf("[DEBUG] get cloud connection failed %v", err)
-		return diag.Errorf(errors.GetCloudConnectionOperationFailed, cloudConnectionID, err)
+		return fmt.Errorf(errors.GetCloudConnectionOperationFailed, cloudConnectionID, err)
 	}
 	log.Printf("[INFO] Found cloud connection with id %s", cloudConnectionID)
 
-	_, deleteJob, err := client.DeleteWithContext(ctx, cloudConnectionID, cloudInstanceID)
+	_, deleteJob, err := client.DeleteWithContext(context.TODO(), cloudConnectionID, cloudInstanceID)
 	if err != nil {
 		log.Printf("[DEBUG] delete cloud connection failed %v", err)
-		return diag.Errorf(errors.DeleteCloudConnectionOperationFailed, cloudConnectionID, err)
+		return fmt.Errorf(errors.DeleteCloudConnectionOperationFailed, cloudConnectionID, err)
 	}
 	if deleteJob != nil {
 		jobID := *deleteJob.ID
 
 		client := st.NewIBMPIJobClient(sess, cloudInstanceID)
-		_, err = waitForIBMPIJobCompleted(ctx, client, jobID, cloudInstanceID, d.Timeout(schema.TimeoutDelete))
+		_, err = waitForIBMPIJobCompleted(context.TODO(), client, jobID, cloudInstanceID, d.Timeout(schema.TimeoutDelete))
 		if err != nil {
-			return diag.Errorf(errors.DeleteCloudConnectionOperationFailed, cloudConnectionID, err)
+			return fmt.Errorf(errors.DeleteCloudConnectionOperationFailed, cloudConnectionID, err)
 		}
 	}
 

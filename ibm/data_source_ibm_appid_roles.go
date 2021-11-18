@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"sort"
 )
 
 func dataSourceIBMAppIDRoles() *schema.Resource {
 	return &schema.Resource{
 		Description: "A list of AppID roles",
-		ReadContext: dataSourceIBMAppIDRolesRead,
+		Read:        dataSourceIBMAppIDRolesRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -65,21 +64,21 @@ func dataSourceIBMAppIDRoles() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDRolesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDRolesRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	roles, resp, err := appIDClient.ListRolesWithContext(ctx, &appid.ListRolesOptions{
+	roles, resp, err := appIDClient.ListRolesWithContext(context.TODO(), &appid.ListRolesOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error listing AppID roles: %s\n%s", err, resp)
+		return fmt.Errorf("Error listing AppID roles: %s\n%s", err, resp)
 	}
 
 	roleList := make([]interface{}, len(roles.Roles))
@@ -109,7 +108,7 @@ func dataSourceIBMAppIDRolesRead(ctx context.Context, d *schema.ResourceData, me
 	})
 
 	if err := d.Set("roles", roleList); err != nil {
-		return diag.Errorf("Error setting AppID roles: %s", err)
+		return fmt.Errorf("Error setting AppID roles: %s", err)
 	}
 
 	d.SetId(fmt.Sprintf("%s/roles", tenantID))

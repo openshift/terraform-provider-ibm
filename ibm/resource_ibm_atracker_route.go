@@ -8,19 +8,18 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/atrackerv1"
 )
 
 func resourceIBMAtrackerRoute() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAtrackerRouteCreate,
-		ReadContext:   resourceIBMAtrackerRouteRead,
-		UpdateContext: resourceIBMAtrackerRouteUpdate,
-		DeleteContext: resourceIBMAtrackerRouteDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMAtrackerRouteCreate,
+		Read:     resourceIBMAtrackerRouteRead,
+		Update:   resourceIBMAtrackerRouteUpdate,
+		Delete:   resourceIBMAtrackerRouteDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -91,10 +90,10 @@ func resourceIBMAtrackerRouteValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMAtrackerRouteCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerRouteCreate(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createRouteOptions := &atrackerv1.CreateRouteOptions{}
@@ -109,15 +108,15 @@ func resourceIBMAtrackerRouteCreate(context context.Context, d *schema.ResourceD
 	}
 	createRouteOptions.SetRules(rules)
 
-	route, response, err := atrackerClient.CreateRouteWithContext(context, createRouteOptions)
+	route, response, err := atrackerClient.CreateRouteWithContext(context.TODO(), createRouteOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateRouteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateRouteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateRouteWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*route.ID)
 
-	return resourceIBMAtrackerRouteRead(context, d, meta)
+	return resourceIBMAtrackerRouteRead(d, meta)
 }
 
 func resourceIBMAtrackerRouteMapToRule(ruleMap map[string]interface{}) atrackerv1.Rule {
@@ -132,31 +131,31 @@ func resourceIBMAtrackerRouteMapToRule(ruleMap map[string]interface{}) atrackerv
 	return rule
 }
 
-func resourceIBMAtrackerRouteRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerRouteRead(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getRouteOptions := &atrackerv1.GetRouteOptions{}
 
 	getRouteOptions.SetID(d.Id())
 
-	route, response, err := atrackerClient.GetRouteWithContext(context, getRouteOptions)
+	route, response, err := atrackerClient.GetRouteWithContext(context.TODO(), getRouteOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetRouteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetRouteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetRouteWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("name", route.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("receive_global_events", route.ReceiveGlobalEvents); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting receive_global_events: %s", err))
+		return fmt.Errorf("Error setting receive_global_events: %s", err)
 	}
 	rules := []map[string]interface{}{}
 	for _, rulesItem := range route.Rules {
@@ -164,19 +163,19 @@ func resourceIBMAtrackerRouteRead(context context.Context, d *schema.ResourceDat
 		rules = append(rules, rulesItemMap)
 	}
 	if err = d.Set("rules", rules); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting rules: %s", err))
+		return fmt.Errorf("Error setting rules: %s", err)
 	}
 	if err = d.Set("crn", route.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("version", intValue(route.Version)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting version: %s", err))
+		return fmt.Errorf("Error setting version: %s", err)
 	}
 	if err = d.Set("created", dateTimeToString(route.Created)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created: %s", err))
+		return fmt.Errorf("Error setting created: %s", err)
 	}
 	if err = d.Set("updated", dateTimeToString(route.Updated)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated: %s", err))
+		return fmt.Errorf("Error setting updated: %s", err)
 	}
 
 	return nil
@@ -190,10 +189,10 @@ func resourceIBMAtrackerRouteRuleToMap(rule atrackerv1.Rule) map[string]interfac
 	return ruleMap
 }
 
-func resourceIBMAtrackerRouteUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerRouteUpdate(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	replaceRouteOptions := &atrackerv1.ReplaceRouteOptions{}
@@ -209,29 +208,29 @@ func resourceIBMAtrackerRouteUpdate(context context.Context, d *schema.ResourceD
 	}
 	replaceRouteOptions.SetRules(rules)
 
-	_, response, err := atrackerClient.ReplaceRouteWithContext(context, replaceRouteOptions)
+	_, response, err := atrackerClient.ReplaceRouteWithContext(context.TODO(), replaceRouteOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ReplaceRouteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ReplaceRouteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ReplaceRouteWithContext failed %s\n%s", err, response)
 	}
 
-	return resourceIBMAtrackerRouteRead(context, d, meta)
+	return resourceIBMAtrackerRouteRead(d, meta)
 }
 
-func resourceIBMAtrackerRouteDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerRouteDelete(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteRouteOptions := &atrackerv1.DeleteRouteOptions{}
 
 	deleteRouteOptions.SetID(d.Id())
 
-	response, err := atrackerClient.DeleteRouteWithContext(context, deleteRouteOptions)
+	response, err := atrackerClient.DeleteRouteWithContext(context.TODO(), deleteRouteOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteRouteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteRouteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteRouteWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

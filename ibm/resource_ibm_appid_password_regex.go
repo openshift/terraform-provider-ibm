@@ -3,22 +3,23 @@ package ibm
 import (
 	"context"
 	b64 "encoding/base64"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDPasswordRegex() *schema.Resource {
 	return &schema.Resource{
-		Description:   "The regular expression used by App ID for password strength validation",
-		CreateContext: resourceIBMAppIDPasswordRegexCreate,
-		ReadContext:   resourceIBMAppIDPasswordRegexRead,
-		DeleteContext: resourceIBMAppIDPasswordRegexDelete,
-		UpdateContext: resourceIBMAppIDPasswordRegexUpdate,
+		Description: "The regular expression used by App ID for password strength validation",
+		Create:      resourceIBMAppIDPasswordRegexCreate,
+		Read:        resourceIBMAppIDPasswordRegexRead,
+		Delete:      resourceIBMAppIDPasswordRegexDelete,
+		Update:      resourceIBMAppIDPasswordRegexUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -46,16 +47,16 @@ func resourceIBMAppIDPasswordRegex() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDPasswordRegexRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDPasswordRegexRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	pw, resp, err := appIDClient.GetCloudDirectoryPasswordRegexWithContext(ctx, &appid.GetCloudDirectoryPasswordRegexOptions{
+	pw, resp, err := appIDClient.GetCloudDirectoryPasswordRegexWithContext(context.TODO(), &appid.GetCloudDirectoryPasswordRegexOptions{
 		TenantID: &tenantID,
 	})
 
@@ -66,7 +67,7 @@ func resourceIBMAppIDPasswordRegexRead(ctx context.Context, d *schema.ResourceDa
 			return nil
 		}
 
-		return diag.Errorf("Error loading AppID Cloud Directory password regex: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Cloud Directory password regex: %s\n%s", err, resp)
 	}
 
 	if pw.Base64EncodedRegex != nil {
@@ -86,11 +87,11 @@ func resourceIBMAppIDPasswordRegexRead(ctx context.Context, d *schema.ResourceDa
 	return nil
 }
 
-func resourceIBMAppIDPasswordRegexCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDPasswordRegexCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -105,26 +106,26 @@ func resourceIBMAppIDPasswordRegexCreate(ctx context.Context, d *schema.Resource
 		input.ErrorMessage = helpers.String(msg.(string))
 	}
 
-	_, resp, err := appIDClient.SetCloudDirectoryPasswordRegexWithContext(ctx, input)
+	_, resp, err := appIDClient.SetCloudDirectoryPasswordRegexWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error setting AppID Cloud Directory password regex: %s\n%s", err, resp)
+		return fmt.Errorf("Error setting AppID Cloud Directory password regex: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDPasswordRegexRead(ctx, d, meta)
+	return resourceIBMAppIDPasswordRegexRead(d, meta)
 }
 
-func resourceIBMAppIDPasswordRegexUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return resourceIBMAppIDPasswordRegexCreate(ctx, d, meta)
+func resourceIBMAppIDPasswordRegexUpdate(d *schema.ResourceData, meta interface{}) error {
+	return resourceIBMAppIDPasswordRegexCreate(d, meta)
 }
 
-func resourceIBMAppIDPasswordRegexDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDPasswordRegexDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -134,10 +135,10 @@ func resourceIBMAppIDPasswordRegexDelete(ctx context.Context, d *schema.Resource
 		Base64EncodedRegex: helpers.String(""),
 	}
 
-	_, resp, err := appIDClient.SetCloudDirectoryPasswordRegexWithContext(ctx, input)
+	_, resp, err := appIDClient.SetCloudDirectoryPasswordRegexWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID Cloud Directory password regex: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID Cloud Directory password regex: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

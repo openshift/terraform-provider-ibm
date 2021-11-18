@@ -4,17 +4,15 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/IBM-Cloud/bluemix-go/api/container/containerv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMContainerNLBDNS() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMContainerNLBDNSRead,
+		Read: dataSourceIBMContainerNLBDNSRead,
 
 		Schema: map[string]*schema.Schema{
 			"cluster": {
@@ -81,18 +79,18 @@ func dataSourceIBMContainerNLBDNS() *schema.Resource {
 	}
 }
 
-func dataSourceIBMContainerNLBDNSRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMContainerNLBDNSRead(d *schema.ResourceData, meta interface{}) error {
 
 	name := d.Get("cluster").(string)
 
 	kubeClient, err := meta.(ClientSession).VpcContainerAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	nlbData, err := kubeClient.NlbDns().GetNLBDNSList(name)
 	if err != nil || nlbData == nil || len(nlbData) < 1 {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error Listing NLB DNS (%s): %s", name, err))
+		return fmt.Errorf("[ERROR] Error Listing NLB DNS (%s): %s", name, err)
 	}
 	d.SetId(name)
 	d.Set("cluster", name)

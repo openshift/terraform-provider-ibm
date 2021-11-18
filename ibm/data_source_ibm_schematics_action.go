@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/schematics-go-sdk/schematicsv1"
 )
 
 func dataSourceIBMSchematicsAction() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSchematicsActionRead,
+		Read: dataSourceIBMSchematicsActionRead,
 
 		Schema: map[string]*schema.Schema{
 			"action_id": &schema.Schema{
@@ -941,151 +940,151 @@ func dataSourceIBMSchematicsAction() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSchematicsActionRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSchematicsActionRead(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getActionOptions := &schematicsv1.GetActionOptions{}
 
 	getActionOptions.SetActionID(d.Get("action_id").(string))
 
-	action, response, err := schematicsClient.GetActionWithContext(context, getActionOptions)
+	action, response, err := schematicsClient.GetActionWithContext(context.TODO(), getActionOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetActionWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetActionWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetActionWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s", *getActionOptions.ActionID))
 	if err = d.Set("name", action.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("description", action.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("location", action.Location); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting location: %s", err))
+		return fmt.Errorf("Error setting location: %s", err)
 	}
 	if err = d.Set("resource_group", action.ResourceGroup); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_group: %s", err))
+		return fmt.Errorf("Error setting resource_group: %s", err)
 	}
 
 	if action.UserState != nil {
 		err = d.Set("user_state", dataSourceActionFlattenUserState(*action.UserState))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting user_state %s", err))
+			return fmt.Errorf("Error setting user_state %s", err)
 		}
 	}
 	if err = d.Set("source_readme_url", action.SourceReadmeURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting source_readme_url: %s", err))
+		return fmt.Errorf("Error setting source_readme_url: %s", err)
 	}
 
 	if action.Source != nil {
 		err = d.Set("source", dataSourceActionFlattenSource(*action.Source))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting source %s", err))
+			return fmt.Errorf("Error setting source %s", err)
 		}
 	}
 	if err = d.Set("source_type", action.SourceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting source_type: %s", err))
+		return fmt.Errorf("Error setting source_type: %s", err)
 	}
 	if err = d.Set("command_parameter", action.CommandParameter); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting command_parameter: %s", err))
+		return fmt.Errorf("Error setting command_parameter: %s", err)
 	}
 	if err = d.Set("inventory", action.Inventory); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting inventory: %s", err))
+		return fmt.Errorf("Error setting inventory: %s", err)
 	}
 
 	if action.Credentials != nil {
 		err = d.Set("credentials", dataSourceActionFlattenCredentials(action.Credentials))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting credentials %s", err))
+			return fmt.Errorf("Error setting credentials %s", err)
 		}
 	}
 
 	if action.Bastion != nil {
 		err = d.Set("bastion", dataSourceActionFlattenBastion(*action.Bastion))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting bastion %s", err))
+			return fmt.Errorf("Error setting bastion %s", err)
 		}
 	}
 
 	if action.BastionCredential != nil {
 		err = d.Set("bastion_credential", dataSourceActionFlattenBastionCredential(*action.BastionCredential))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting bastion_credential %s", err))
+			return fmt.Errorf("Error setting bastion_credential %s", err)
 		}
 	}
 	if err = d.Set("targets_ini", action.TargetsIni); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting targets_ini: %s", err))
+		return fmt.Errorf("Error setting targets_ini: %s", err)
 	}
 
 	if action.Inputs != nil {
 		err = d.Set("action_inputs", dataSourceActionFlattenInputs(action.Inputs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting action_inputs %s", err))
+			return fmt.Errorf("Error setting action_inputs %s", err)
 		}
 	}
 
 	if action.Outputs != nil {
 		err = d.Set("action_outputs", dataSourceActionFlattenOutputs(action.Outputs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting action_outputs %s", err))
+			return fmt.Errorf("Error setting action_outputs %s", err)
 		}
 	}
 
 	if action.Settings != nil {
 		err = d.Set("settings", dataSourceActionFlattenSettings(action.Settings))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting settings %s", err))
+			return fmt.Errorf("Error setting settings %s", err)
 		}
 	}
 	if err = d.Set("id", action.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting id: %s", err))
+		return fmt.Errorf("Error setting id: %s", err)
 	}
 	if err = d.Set("crn", action.Crn); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("account", action.Account); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting account: %s", err))
+		return fmt.Errorf("Error setting account: %s", err)
 	}
 	if err = d.Set("source_created_at", dateTimeToString(action.SourceCreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting source_created_at: %s", err))
+		return fmt.Errorf("Error setting source_created_at: %s", err)
 	}
 	if err = d.Set("source_created_by", action.SourceCreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting source_created_by: %s", err))
+		return fmt.Errorf("Error setting source_created_by: %s", err)
 	}
 	if err = d.Set("source_updated_at", dateTimeToString(action.SourceUpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting source_updated_at: %s", err))
+		return fmt.Errorf("Error setting source_updated_at: %s", err)
 	}
 	if err = d.Set("source_updated_by", action.SourceUpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting source_updated_by: %s", err))
+		return fmt.Errorf("Error setting source_updated_by: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(action.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", action.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("updated_at", dateTimeToString(action.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+		return fmt.Errorf("Error setting updated_at: %s", err)
 	}
 	if err = d.Set("updated_by", action.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+		return fmt.Errorf("Error setting updated_by: %s", err)
 	}
 
 	if action.State != nil {
 		err = d.Set("state", dataSourceActionFlattenState(*action.State))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting state %s", err))
+			return fmt.Errorf("Error setting state %s", err)
 		}
 	}
 
 	if action.SysLock != nil {
 		err = d.Set("sys_lock", dataSourceActionFlattenSysLock(*action.SysLock))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting sys_lock %s", err))
+			return fmt.Errorf("Error setting sys_lock %s", err)
 		}
 	}
 

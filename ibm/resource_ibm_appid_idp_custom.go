@@ -2,21 +2,22 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDIDPCustom() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDIDPCustomCreate,
-		ReadContext:   resourceIBMAppIDIDPCustomRead,
-		DeleteContext: resourceIBMAppIDIDPCustomDelete,
-		UpdateContext: resourceIBMAppIDIDPCustomUpdate,
+		Create: resourceIBMAppIDIDPCustomCreate,
+		Read:   resourceIBMAppIDIDPCustomRead,
+		Delete: resourceIBMAppIDIDPCustomDelete,
+		Update: resourceIBMAppIDIDPCustomUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -38,16 +39,16 @@ func resourceIBMAppIDIDPCustom() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDIDPCustomRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCustomRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	config, resp, err := appIDClient.GetCustomIDPWithContext(ctx, &appid.GetCustomIDPOptions{
+	config, resp, err := appIDClient.GetCustomIDPWithContext(context.TODO(), &appid.GetCustomIDPOptions{
 		TenantID: &tenantID,
 	})
 
@@ -58,14 +59,14 @@ func resourceIBMAppIDIDPCustomRead(ctx context.Context, d *schema.ResourceData, 
 			return nil
 		}
 
-		return diag.Errorf("Error loading AppID custom IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID custom IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *config.IsActive)
 
 	if config.Config != nil && config.Config.PublicKey != nil {
 		if err := d.Set("public_key", *config.Config.PublicKey); err != nil {
-			return diag.Errorf("Failed setting AppID custom IDP public_key: %s", err)
+			return fmt.Errorf("Failed setting AppID custom IDP public_key: %s", err)
 		}
 	}
 
@@ -74,11 +75,11 @@ func resourceIBMAppIDIDPCustomRead(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func resourceIBMAppIDIDPCustomCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCustomCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -97,15 +98,15 @@ func resourceIBMAppIDIDPCustomCreate(ctx context.Context, d *schema.ResourceData
 		}
 	}
 
-	_, resp, err := appIDClient.SetCustomIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetCustomIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error applying AppID custom IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error applying AppID custom IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDIDPCustomRead(ctx, d, meta)
+	return resourceIBMAppIDIDPCustomRead(d, meta)
 }
 
 func appIDCustomIDPDefaults(tenantID string) *appid.SetCustomIDPOptions {
@@ -115,20 +116,20 @@ func appIDCustomIDPDefaults(tenantID string) *appid.SetCustomIDPOptions {
 	}
 }
 
-func resourceIBMAppIDIDPCustomDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCustomDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	config := appIDCustomIDPDefaults(tenantID)
 
-	_, resp, err := appIDClient.SetCustomIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetCustomIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID custom IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID custom IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
@@ -136,7 +137,7 @@ func resourceIBMAppIDIDPCustomDelete(ctx context.Context, d *schema.ResourceData
 	return nil
 }
 
-func resourceIBMAppIDIDPCustomUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCustomUpdate(d *schema.ResourceData, m interface{}) error {
 	// since this is configuration we can reuse create method
-	return resourceIBMAppIDIDPCustomCreate(ctx, d, m)
+	return resourceIBMAppIDIDPCustomCreate(d, m)
 }

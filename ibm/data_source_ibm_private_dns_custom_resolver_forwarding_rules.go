@@ -8,13 +8,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMPrivateDNSForwardingRules() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmDnsCrForwardingRulesRead,
+		Read: dataSourceIbmDnsCrForwardingRulesRead,
 
 		Schema: map[string]*schema.Schema{
 			pdnsInstanceID: {
@@ -67,19 +66,19 @@ func dataSourceIBMPrivateDNSForwardingRules() *schema.Resource {
 	}
 }
 
-func dataSourceIbmDnsCrForwardingRulesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmDnsCrForwardingRulesRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).PrivateDNSClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	instanceID := d.Get(pdnsInstanceID).(string)
 	resolverID := d.Get(pdnsCRFRResolverID).(string)
 
 	opt := sess.NewListForwardingRulesOptions(instanceID, resolverID)
 
-	result, resp, err := sess.ListForwardingRulesWithContext(context, opt)
+	result, resp, err := sess.ListForwardingRulesWithContext(context.TODO(), opt)
 	if err != nil || result == nil {
-		return diag.FromErr(fmt.Errorf("Error listing the forwarding rules %s:%s", err, resp))
+		return fmt.Errorf("Error listing the forwarding rules %s:%s", err, resp)
 	}
 
 	forwardRules := make([]interface{}, 0)

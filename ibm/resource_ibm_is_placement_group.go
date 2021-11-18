@@ -9,10 +9,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/customdiff"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/customdiff"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
@@ -34,11 +33,11 @@ const (
 
 func resourceIbmIsPlacementGroup() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmIsPlacementGroupCreate,
-		ReadContext:   resourceIbmIsPlacementGroupRead,
-		UpdateContext: resourceIbmIsPlacementGroupUpdate,
-		DeleteContext: resourceIbmIsPlacementGroupDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmIsPlacementGroupCreate,
+		Read:     resourceIbmIsPlacementGroupRead,
+		Update:   resourceIbmIsPlacementGroupUpdate,
+		Delete:   resourceIbmIsPlacementGroupDelete,
+		Importer: &schema.ResourceImporter{},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
 			Update: schema.DefaultTimeout(10 * time.Minute),
@@ -46,7 +45,7 @@ func resourceIbmIsPlacementGroup() *schema.Resource {
 		},
 
 		CustomizeDiff: customdiff.Sequence(
-			func(_ context.Context, diff *schema.ResourceDiff, v interface{}) error {
+			func(diff *schema.ResourceDiff, v interface{}) error {
 				return resourceTagsCustomizeDiff(diff)
 			},
 		),
@@ -159,10 +158,10 @@ func resourceIbmIsPlacementGroupValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIbmIsPlacementGroupCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsPlacementGroupCreate(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createPlacementGroupOptions := &vpcv1.CreatePlacementGroupOptions{}
@@ -178,17 +177,17 @@ func resourceIbmIsPlacementGroupCreate(context context.Context, d *schema.Resour
 		createPlacementGroupOptions.SetResourceGroup(resourceGroupIdentity)
 	}
 
-	placementGroup, response, err := vpcClient.CreatePlacementGroupWithContext(context, createPlacementGroupOptions)
+	placementGroup, response, err := vpcClient.CreatePlacementGroupWithContext(context.TODO(), createPlacementGroupOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreatePlacementGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*placementGroup.ID)
 
 	_, err = isWaitForPlacementGroupAvailable(vpcClient, d.Id(), d.Timeout(schema.TimeoutCreate), d)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error waiting for placement group to be available %s", err))
+		return fmt.Errorf("[ERROR] Error waiting for placement group to be available %s", err)
 	}
 	if _, ok := d.GetOk(isPlacementGroupTags); ok {
 		oldList, newList := d.GetChange(isPlacementGroupTags)
@@ -196,7 +195,7 @@ func resourceIbmIsPlacementGroupCreate(context context.Context, d *schema.Resour
 		if err != nil {
 			log.Printf(
 				"Error creating placement group (%s) tags: %s", d.Id(), err)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
@@ -206,57 +205,57 @@ func resourceIbmIsPlacementGroupCreate(context context.Context, d *schema.Resour
 		if err != nil {
 			log.Printf(
 				"Error creating placement group (%s) access tags: %s", d.Id(), err)
-			return diag.FromErr(err)
+			return err
 		}
 	}
-	return resourceIbmIsPlacementGroupRead(context, d, meta)
+	return resourceIbmIsPlacementGroupRead(d, meta)
 }
 
-func resourceIbmIsPlacementGroupRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsPlacementGroupRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getPlacementGroupOptions := &vpcv1.GetPlacementGroupOptions{}
 
 	getPlacementGroupOptions.SetID(d.Id())
 
-	placementGroup, response, err := vpcClient.GetPlacementGroupWithContext(context, getPlacementGroupOptions)
+	placementGroup, response, err := vpcClient.GetPlacementGroupWithContext(context.TODO(), getPlacementGroupOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetPlacementGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	if err = d.Set("strategy", placementGroup.Strategy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting strategy: %s", err))
+		return fmt.Errorf("Error setting strategy: %s", err)
 	}
 	if err = d.Set("name", placementGroup.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if placementGroup.ResourceGroup != nil {
 		if err = d.Set("resource_group", *placementGroup.ResourceGroup.ID); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resource_group: %s", err))
+			return fmt.Errorf("Error setting resource_group: %s", err)
 		}
 	}
 	if err = d.Set("created_at", placementGroup.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("crn", placementGroup.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("href", placementGroup.Href); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+		return fmt.Errorf("Error setting href: %s", err)
 	}
 	if err = d.Set("lifecycle_state", placementGroup.LifecycleState); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting lifecycle_state: %s", err))
+		return fmt.Errorf("Error setting lifecycle_state: %s", err)
 	}
 	if err = d.Set("resource_type", placementGroup.ResourceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_type: %s", err))
+		return fmt.Errorf("Error setting resource_type: %s", err)
 	}
 	tags, err := GetGlobalTagsUsingCRN(meta, *placementGroup.CRN, "", isUserTagType)
 	if err != nil {
@@ -275,10 +274,10 @@ func resourceIbmIsPlacementGroupRead(context context.Context, d *schema.Resource
 	return nil
 }
 
-func resourceIbmIsPlacementGroupUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsPlacementGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updatePlacementGroupOptions := &vpcv1.UpdatePlacementGroupOptions{}
@@ -297,13 +296,13 @@ func resourceIbmIsPlacementGroupUpdate(context context.Context, d *schema.Resour
 		placementGroupPatch, err := placementGroupPatchModel.AsPatch()
 		if err != nil {
 			log.Printf("[DEBUG] Error calling AsPatch for PlacementGroupPatch %s", err)
-			return diag.FromErr(err)
+			return err
 		}
 		updatePlacementGroupOptions.SetPlacementGroupPatch(placementGroupPatch)
-		_, response, err := vpcClient.UpdatePlacementGroupWithContext(context, updatePlacementGroupOptions)
+		_, response, err := vpcClient.UpdatePlacementGroupWithContext(context.TODO(), updatePlacementGroupOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdatePlacementGroupWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 	if d.HasChange(isPlacementGroupTags) {
@@ -323,33 +322,33 @@ func resourceIbmIsPlacementGroupUpdate(context context.Context, d *schema.Resour
 				"Error on update of resource subnet (%s) access tags: %s", d.Id(), err)
 		}
 	}
-	return resourceIbmIsPlacementGroupRead(context, d, meta)
+	return resourceIbmIsPlacementGroupRead(d, meta)
 }
 
-func resourceIbmIsPlacementGroupDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsPlacementGroupDelete(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deletePlacementGroupOptions := &vpcv1.DeletePlacementGroupOptions{}
 
 	deletePlacementGroupOptions.SetID(d.Id())
 
-	response, err := vpcClient.DeletePlacementGroupWithContext(context, deletePlacementGroupOptions)
+	response, err := vpcClient.DeletePlacementGroupWithContext(context.TODO(), deletePlacementGroupOptions)
 	if err != nil {
 		if response.StatusCode == 409 {
 			_, err = isWaitForPlacementGroupDeleteRetry(vpcClient, d, d.Id())
 			if err != nil {
-				return diag.FromErr(fmt.Errorf("Error deleting PLacementGroup: %s", err))
+				return fmt.Errorf("Error deleting PLacementGroup: %s", err)
 			}
 		} else {
-			return diag.FromErr(fmt.Errorf("Error deleting PLacementGroup: %s\n%s", err, response))
+			return fmt.Errorf("Error deleting PLacementGroup: %s\n%s", err, response)
 		}
 	}
 	_, err = isWaitForPlacementGroupDelete(vpcClient, d, d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	d.SetId("")
 

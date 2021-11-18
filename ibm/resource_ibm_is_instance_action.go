@@ -4,13 +4,11 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const (
@@ -24,12 +22,12 @@ const (
 
 func resourceIBMISInstanceAction() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMISInstanceActionCreate,
-		ReadContext:   resourceIBMISInstanceActionRead,
-		UpdateContext: resourceIBMISInstanceActionUpdate,
-		DeleteContext: resourceIBMISInstanceActionDelete,
-		Exists:        resourceIBMISInstanceActionExists,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMISInstanceActionCreate,
+		Read:     resourceIBMISInstanceActionRead,
+		Update:   resourceIBMISInstanceActionUpdate,
+		Delete:   resourceIBMISInstanceActionDelete,
+		Exists:   resourceIBMISInstanceActionExists,
+		Importer: &schema.ResourceImporter{},
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
@@ -101,10 +99,10 @@ func resourceIBMISInstanceActionValidator() *ResourceValidator {
 	return &ibmISInstanceActionResourceValidator
 }
 
-func resourceIBMISInstanceActionCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMISInstanceActionCreate(d *schema.ResourceData, meta interface{}) error {
 	sess, err := vpcClient(meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	instanceId := ""
 	if insId, ok := d.GetOk(isInstanceID); ok {
@@ -119,14 +117,14 @@ func resourceIBMISInstanceActionCreate(context context.Context, d *schema.Resour
 	}
 	instance, response, err := sess.GetInstance(getinsOptions)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Error Getting Instance (%s): %s\n%s", instanceId, err, response))
+		return fmt.Errorf("Error Getting Instance (%s): %s\n%s", instanceId, err, response)
 	}
 	if (actiontype == "stop" || actiontype == "reboot") && *instance.Status != isInstanceStatusRunning {
 		d.Set(isInstanceAction, nil)
-		return diag.FromErr(fmt.Errorf("Error with stop/reboot action: Cannot invoke stop/reboot action while instance is not in running state"))
+		return fmt.Errorf("Error with stop/reboot action: Cannot invoke stop/reboot action while instance is not in running state")
 	} else if actiontype == "start" && *instance.Status != isInstanceActionStatusStopped {
 		d.Set(isInstanceAction, nil)
-		return diag.FromErr(fmt.Errorf("Error with start action: Cannot invoke start action while instance is not in stopped state"))
+		return fmt.Errorf("Error with start action: Cannot invoke start action while instance is not in stopped state")
 	}
 	createinsactoptions := &vpcv1.CreateInstanceActionOptions{
 		InstanceID: &instanceId,
@@ -141,28 +139,28 @@ func resourceIBMISInstanceActionCreate(context context.Context, d *schema.Resour
 		if response != nil && response.StatusCode == 404 {
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("Error Creating Instance Action: %s\n%s", err, response))
+		return fmt.Errorf("Error Creating Instance Action: %s\n%s", err, response)
 	}
 	if actiontype == "stop" {
 		_, err = isWaitForInstanceActionStop(sess, d.Timeout(schema.TimeoutUpdate), instanceId, d)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	} else if actiontype == "start" || actiontype == "reboot" {
 		_, err = isWaitForInstanceActionStart(sess, d.Timeout(schema.TimeoutUpdate), instanceId, d)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
 	d.SetId(instanceId)
-	return resourceIBMISInstanceActionRead(context, d, meta)
+	return resourceIBMISInstanceActionRead(d, meta)
 }
 
-func resourceIBMISInstanceActionRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMISInstanceActionRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := vpcClient(meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	id := d.Id()
 
@@ -175,7 +173,7 @@ func resourceIBMISInstanceActionRead(context context.Context, d *schema.Resource
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("Error getting instance (%s): %s\n%s", id, err, response))
+		return fmt.Errorf("Error getting instance (%s): %s\n%s", id, err, response)
 	}
 
 	d.Set(isInstanceStatus, *instance.Status)
@@ -194,10 +192,10 @@ func resourceIBMISInstanceActionRead(context context.Context, d *schema.Resource
 	return nil
 }
 
-func resourceIBMISInstanceActionUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMISInstanceActionUpdate(d *schema.ResourceData, meta interface{}) error {
 	sess, err := vpcClient(meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	_, actiontypeIntf := d.GetChange(isInstanceAction)
 	actiontype := actiontypeIntf.(string)
@@ -208,14 +206,14 @@ func resourceIBMISInstanceActionUpdate(context context.Context, d *schema.Resour
 	}
 	instance, response, err := sess.GetInstance(getinsOptions)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Error Getting Instance (%s): %s\n%s", id, err, response))
+		return fmt.Errorf("Error Getting Instance (%s): %s\n%s", id, err, response)
 	}
 	if (actiontype == "stop" || actiontype == "reboot") && *instance.Status != isInstanceStatusRunning {
 		d.Set(isInstanceAction, nil)
-		return diag.FromErr(fmt.Errorf("Error with stop/reboot action: Cannot invoke stop/reboot action while instance is not in running state"))
+		return fmt.Errorf("Error with stop/reboot action: Cannot invoke stop/reboot action while instance is not in running state")
 	} else if actiontype == "start" && *instance.Status != isInstanceActionStatusStopped {
 		d.Set(isInstanceAction, nil)
-		return diag.FromErr(fmt.Errorf("Error with start action: Cannot invoke start action while instance is not in stopped state"))
+		return fmt.Errorf("Error with start action: Cannot invoke start action while instance is not in stopped state")
 	}
 	createinsactoptions := &vpcv1.CreateInstanceActionOptions{
 		InstanceID: &id,
@@ -226,24 +224,24 @@ func resourceIBMISInstanceActionUpdate(context context.Context, d *schema.Resour
 		if response != nil && response.StatusCode == 404 {
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("Error Creating Instance Action: %s\n%s", err, response))
+		return fmt.Errorf("Error Creating Instance Action: %s\n%s", err, response)
 	}
 	if actiontype == "stop" {
 		_, err = isWaitForInstanceActionStop(sess, d.Timeout(schema.TimeoutUpdate), id, d)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	} else if actiontype == "start" || actiontype == "reboot" {
 		_, err = isWaitForInstanceActionStart(sess, d.Timeout(schema.TimeoutUpdate), id, d)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
 	return nil
 }
 
-func resourceIBMISInstanceActionDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMISInstanceActionDelete(d *schema.ResourceData, meta interface{}) error {
 	d.SetId("")
 	return nil
 }

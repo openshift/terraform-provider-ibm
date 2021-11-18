@@ -4,12 +4,10 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
@@ -22,11 +20,11 @@ const (
 
 func resourceIBMIamTrustedProfileClaimRule() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMIamTrustedProfileClaimRuleCreate,
-		ReadContext:   resourceIBMIamTrustedProfileClaimRuleRead,
-		UpdateContext: resourceIBMIamTrustedProfileClaimRuleUpdate,
-		DeleteContext: resourceIBMIamTrustedProfileClaimRuleDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMIamTrustedProfileClaimRuleCreate,
+		Read:     resourceIBMIamTrustedProfileClaimRuleRead,
+		Update:   resourceIBMIamTrustedProfileClaimRuleUpdate,
+		Delete:   resourceIBMIamTrustedProfileClaimRuleDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"profile_id": &schema.Schema{
@@ -110,10 +108,10 @@ func resourceIBMIamTrustedProfileClaimRule() *schema.Resource {
 	}
 }
 
-func resourceIBMIamTrustedProfileClaimRuleCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileClaimRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createClaimRuleOptions := &iamidentityv1.CreateClaimRuleOptions{}
@@ -144,12 +142,12 @@ func resourceIBMIamTrustedProfileClaimRuleCreate(context context.Context, d *sch
 	profileClaimRule, response, err := iamIdentityClient.CreateClaimRule(createClaimRuleOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateClaimRule failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateClaimRule failed %s\n%s", err, response))
+		return fmt.Errorf("CreateClaimRule failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", profile, *profileClaimRule.ID))
 
-	return resourceIBMIamTrustedProfileClaimRuleRead(context, d, meta)
+	return resourceIBMIamTrustedProfileClaimRuleRead(d, meta)
 }
 
 func resourceIBMIamTrustedProfileClaimRuleMapToProfileClaimRuleConditions(profileClaimRuleConditionsMap map[string]interface{}) iamidentityv1.ProfileClaimRuleConditions {
@@ -202,14 +200,14 @@ func resourceIBMIamTrustedProfileClaimRuleMapToResponseContext(responseContextMa
 	return responseContext
 }
 
-func resourceIBMIamTrustedProfileClaimRuleRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileClaimRuleRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Invalid ID %s", err))
+		return fmt.Errorf("Invalid ID %s", err)
 	}
 	getClaimRuleOptions := &iamidentityv1.GetClaimRuleOptions{}
 
@@ -223,14 +221,14 @@ func resourceIBMIamTrustedProfileClaimRuleRead(context context.Context, d *schem
 			return nil
 		}
 		log.Printf("[DEBUG] GetClaimRule failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetClaimRule failed %s\n%s", err, response))
+		return fmt.Errorf("GetClaimRule failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("profile_id", getClaimRuleOptions.ProfileID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting profile_id: %s", err))
+		return fmt.Errorf("Error setting profile_id: %s", err)
 	}
 	if err = d.Set("type", profileClaimRule.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting type: %s", err))
+		return fmt.Errorf("Error setting type: %s", err)
 	}
 	conditions := []map[string]interface{}{}
 	for _, conditionsItem := range profileClaimRule.Conditions {
@@ -238,31 +236,31 @@ func resourceIBMIamTrustedProfileClaimRuleRead(context context.Context, d *schem
 		conditions = append(conditions, conditionsItemMap)
 	}
 	if err = d.Set("conditions", conditions); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting conditions: %s", err))
+		return fmt.Errorf("Error setting conditions: %s", err)
 	}
 	if err = d.Set("name", profileClaimRule.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("rule_id", profileClaimRule.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting rule_id: %s", err))
+		return fmt.Errorf("Error setting rule_id: %s", err)
 	}
 	if err = d.Set("realm_name", profileClaimRule.RealmName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting realm_name: %s", err))
+		return fmt.Errorf("Error setting realm_name: %s", err)
 	}
 	if err = d.Set("cr_type", profileClaimRule.CrType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting cr_type: %s", err))
+		return fmt.Errorf("Error setting cr_type: %s", err)
 	}
 	if err = d.Set("expiration", intValue(profileClaimRule.Expiration)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting expiration: %s", err))
+		return fmt.Errorf("Error setting expiration: %s", err)
 	}
 	if err = d.Set("entity_tag", profileClaimRule.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(profileClaimRule.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("modified_at", dateTimeToString(profileClaimRule.ModifiedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 
 	return nil
@@ -318,14 +316,14 @@ func resourceIBMIamTrustedProfileClaimRuleResponseContextToMap(responseContext i
 	return responseContextMap
 }
 
-func resourceIBMIamTrustedProfileClaimRuleUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileClaimRuleUpdate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Invalid ID %s", err))
+		return fmt.Errorf("Invalid ID %s", err)
 	}
 	updateClaimRuleOptions := &iamidentityv1.UpdateClaimRuleOptions{}
 
@@ -357,20 +355,20 @@ func resourceIBMIamTrustedProfileClaimRuleUpdate(context context.Context, d *sch
 	_, response, err := iamIdentityClient.UpdateClaimRule(updateClaimRuleOptions)
 	if err != nil {
 		log.Printf("[DEBUG] UpdateClaimRule failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("UpdateClaimRule failed %s\n%s", err, response))
+		return fmt.Errorf("UpdateClaimRule failed %s\n%s", err, response)
 	}
 
-	return resourceIBMIamTrustedProfileClaimRuleRead(context, d, meta)
+	return resourceIBMIamTrustedProfileClaimRuleRead(d, meta)
 }
 
-func resourceIBMIamTrustedProfileClaimRuleDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileClaimRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Invalid ID %s", err))
+		return fmt.Errorf("Invalid ID %s", err)
 	}
 
 	deleteClaimRuleOptions := &iamidentityv1.DeleteClaimRuleOptions{}
@@ -381,7 +379,7 @@ func resourceIBMIamTrustedProfileClaimRuleDelete(context context.Context, d *sch
 	response, err := iamIdentityClient.DeleteClaimRule(deleteClaimRuleOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteClaimRule failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteClaimRule failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteClaimRule failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/ibmcloudshellv1"
 )
 
 func dataSourceIBMCloudShellAccountSettings() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMCloudShellAccountSettingsRead,
+		Read: dataSourceIBMCloudShellAccountSettingsRead,
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -111,63 +110,63 @@ func dataSourceIBMCloudShellAccountSettings() *schema.Resource {
 	}
 }
 
-func dataSourceIBMCloudShellAccountSettingsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMCloudShellAccountSettingsRead(d *schema.ResourceData, meta interface{}) error {
 	ibmCloudShellClient, err := meta.(ClientSession).IBMCloudShellV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getAccountSettingsOptions := &ibmcloudshellv1.GetAccountSettingsOptions{}
 
 	getAccountSettingsOptions.SetAccountID(d.Get("account_id").(string))
 
-	accountSettings, response, err := ibmCloudShellClient.GetAccountSettingsWithContext(context, getAccountSettingsOptions)
+	accountSettings, response, err := ibmCloudShellClient.GetAccountSettingsWithContext(context.TODO(), getAccountSettingsOptions)
 	if err != nil || accountSettings == nil {
 		log.Printf("[DEBUG] GetAccountSettingsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetAccountSettingsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetAccountSettingsWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*accountSettings.AccountID)
 	if err = d.Set("rev", accountSettings.Rev); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting rev: %s", err))
+		return fmt.Errorf("Error setting rev: %s", err)
 	}
 	if err = d.Set("created_at", intValue(accountSettings.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", accountSettings.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("default_enable_new_features", accountSettings.DefaultEnableNewFeatures); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting default_enable_new_features: %s", err))
+		return fmt.Errorf("Error setting default_enable_new_features: %s", err)
 	}
 	if err = d.Set("default_enable_new_regions", accountSettings.DefaultEnableNewRegions); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting default_enable_new_regions: %s", err))
+		return fmt.Errorf("Error setting default_enable_new_regions: %s", err)
 	}
 	if err = d.Set("enabled", accountSettings.Enabled); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting enabled: %s", err))
+		return fmt.Errorf("Error setting enabled: %s", err)
 	}
 
 	if accountSettings.Features != nil {
 		err = d.Set("features", dataSourceAccountSettingsFlattenFeatures(accountSettings.Features))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting features %s", err))
+			return fmt.Errorf("Error setting features %s", err)
 		}
 	}
 
 	if accountSettings.Regions != nil {
 		err = d.Set("regions", dataSourceAccountSettingsFlattenRegions(accountSettings.Regions))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting regions %s", err))
+			return fmt.Errorf("Error setting regions %s", err)
 		}
 	}
 	if err = d.Set("type", accountSettings.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting type: %s", err))
+		return fmt.Errorf("Error setting type: %s", err)
 	}
 	if err = d.Set("updated_at", intValue(accountSettings.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+		return fmt.Errorf("Error setting updated_at: %s", err)
 	}
 	if err = d.Set("updated_by", accountSettings.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+		return fmt.Errorf("Error setting updated_by: %s", err)
 	}
 
 	return nil

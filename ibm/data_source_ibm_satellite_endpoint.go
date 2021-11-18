@@ -9,13 +9,12 @@ import (
 	"log"
 
 	"github.com/IBM-Cloud/container-services-go-sdk/satellitelinkv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIbmSatelliteEndpoint() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmSatelliteEndpointRead,
+		Read: dataSourceIbmSatelliteEndpointRead,
 
 		Schema: map[string]*schema.Schema{
 			"location": &schema.Schema{
@@ -312,10 +311,10 @@ func dataSourceIbmSatelliteEndpoint() *schema.Resource {
 	}
 }
 
-func dataSourceIbmSatelliteEndpointRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmSatelliteEndpointRead(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getEndpointsOptions := &satellitelinkv1.GetEndpointsOptions{}
@@ -323,92 +322,92 @@ func dataSourceIbmSatelliteEndpointRead(context context.Context, d *schema.Resou
 	getEndpointsOptions.SetLocationID(d.Get("location").(string))
 	getEndpointsOptions.SetEndpointID(d.Get("endpoint_id").(string))
 
-	endpoint, response, err := satelliteLinkClient.GetEndpointsWithContext(context, getEndpointsOptions)
+	endpoint, response, err := satelliteLinkClient.GetEndpointsWithContext(context.TODO(), getEndpointsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetEndpointsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetEndpointsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetEndpointsWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", *endpoint.LocationID, *endpoint.EndpointID))
 	if err = d.Set("connection_type", endpoint.ConnType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting connection_type: %s", err))
+		return fmt.Errorf("Error setting connection_type: %s", err)
 	}
 	if err = d.Set("display_name", endpoint.DisplayName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting display_name: %s", err))
+		return fmt.Errorf("Error setting display_name: %s", err)
 	}
 	if err = d.Set("server_host", endpoint.ServerHost); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_host: %s", err))
+		return fmt.Errorf("Error setting server_host: %s", err)
 	}
 	if err = d.Set("server_port", endpoint.ServerPort); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_port: %s", err))
+		return fmt.Errorf("Error setting server_port: %s", err)
 	}
 	if err = d.Set("sni", endpoint.Sni); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting sni: %s", err))
+		return fmt.Errorf("Error setting sni: %s", err)
 	}
 	if err = d.Set("client_protocol", endpoint.ClientProtocol); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_protocol: %s", err))
+		return fmt.Errorf("Error setting client_protocol: %s", err)
 	}
 	if err = d.Set("client_mutual_auth", endpoint.ClientMutualAuth); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_mutual_auth: %s", err))
+		return fmt.Errorf("Error setting client_mutual_auth: %s", err)
 	}
 	if err = d.Set("server_protocol", endpoint.ServerProtocol); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_protocol: %s", err))
+		return fmt.Errorf("Error setting server_protocol: %s", err)
 	}
 	if err = d.Set("server_mutual_auth", endpoint.ServerMutualAuth); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_mutual_auth: %s", err))
+		return fmt.Errorf("Error setting server_mutual_auth: %s", err)
 	}
 	if err = d.Set("reject_unauth", endpoint.RejectUnauth); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting reject_unauth: %s", err))
+		return fmt.Errorf("Error setting reject_unauth: %s", err)
 	}
 	if err = d.Set("timeout", endpoint.Timeout); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting timeout: %s", err))
+		return fmt.Errorf("Error setting timeout: %s", err)
 	}
 	if err = d.Set("created_by", endpoint.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 
 	if endpoint.Sources != nil {
 		err = d.Set("sources", dataSourceEndpointFlattenSources(endpoint.Sources))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting sources %s", err))
+			return fmt.Errorf("Error setting sources %s", err)
 		}
 	}
 	if err = d.Set("connector_port", endpoint.ConnectorPort); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting connector_port: %s", err))
+		return fmt.Errorf("Error setting connector_port: %s", err)
 	}
 	if err = d.Set("crn", endpoint.Crn); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("service_name", endpoint.ServiceName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting service_name: %s", err))
+		return fmt.Errorf("Error setting service_name: %s", err)
 	}
 	if err = d.Set("client_host", endpoint.ClientHost); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_host: %s", err))
+		return fmt.Errorf("Error setting client_host: %s", err)
 	}
 	if err = d.Set("client_port", endpoint.ClientPort); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_port: %s", err))
+		return fmt.Errorf("Error setting client_port: %s", err)
 	}
 
 	if endpoint.Certs != nil {
 		err = d.Set("certs", dataSourceEndpointFlattenCerts(*endpoint.Certs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting certs %s", err))
+			return fmt.Errorf("Error setting certs %s", err)
 		}
 	}
 	if err = d.Set("status", endpoint.Status); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting status: %s", err))
+		return fmt.Errorf("Error setting status: %s", err)
 	}
 	if err = d.Set("created_at", endpoint.CreatedAt); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("last_change", endpoint.LastChange); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting last_change: %s", err))
+		return fmt.Errorf("Error setting last_change: %s", err)
 	}
 
 	if endpoint.Performance != nil {
 		err = d.Set("performance", dataSourceEndpointFlattenPerformance(*endpoint.Performance))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting performance %s", err))
+			return fmt.Errorf("Error setting performance %s", err)
 		}
 	}
 

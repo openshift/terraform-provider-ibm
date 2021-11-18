@@ -11,13 +11,12 @@ import (
 	"time"
 
 	"github.com/IBM/secrets-manager-go-sdk/secretsmanagerv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMSecretsManagerSecrets() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSecretsManagerSecretsRead,
+		Read: dataSourceIBMSecretsManagerSecretsRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance_id": {
@@ -254,20 +253,20 @@ func datasourceIBMSecretsManagerSecretsValidator() *ResourceValidator {
 	return &ibmSecretsManagerSecretsdatasourceValidator
 }
 
-func dataSourceIBMSecretsManagerSecretsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSecretsManagerSecretsRead(d *schema.ResourceData, meta interface{}) error {
 	bluemixSession, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	region := bluemixSession.Config.Region
 
 	secretsManagerClient, err := meta.(ClientSession).SecretsManagerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	rContollerClient, err := meta.(ClientSession).ResourceControllerAPIV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	instanceID := d.Get("instance_id").(string)
@@ -278,7 +277,7 @@ func dataSourceIBMSecretsManagerSecretsRead(context context.Context, d *schema.R
 
 	instanceData, err := rContollerAPI.GetInstance(instanceID)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	instanceCRN := instanceData.Crn.String()
 
@@ -293,15 +292,15 @@ func dataSourceIBMSecretsManagerSecretsRead(context context.Context, d *schema.R
 		smUrl := envFallBack([]string{"IBMCLOUD_SECRETS_MANAGER_API_ENDPOINT"}, smEndpointURL)
 		secretsManagerClient.Service.Options.URL = smUrl
 	} else {
-		return diag.FromErr(fmt.Errorf("Invalid or unsupported service Instance"))
+		return fmt.Errorf("Invalid or unsupported service Instance")
 	}
 
 	listAllSecretsOptions := &secretsmanagerv1.ListAllSecretsOptions{}
 
-	listSecrets, response, err := secretsManagerClient.ListAllSecretsWithContext(context, listAllSecretsOptions)
+	listSecrets, response, err := secretsManagerClient.ListAllSecretsWithContext(context.TODO(), listAllSecretsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListAllSecretsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	// Use the provided filter argument and construct a new list with only the requested resource(s)
@@ -325,7 +324,7 @@ func dataSourceIBMSecretsManagerSecretsRead(context context.Context, d *schema.R
 	listSecrets.Resources = matchResources
 
 	if len(listSecrets.Resources) == 0 {
-		return diag.FromErr(fmt.Errorf("no Resources found with secretType %s\nIf not specified, please specify more filters", secretType))
+		return fmt.Errorf("no Resources found with secretType %s\nIf not specified, please specify more filters", secretType)
 	}
 
 	if suppliedFilter {
@@ -337,14 +336,14 @@ func dataSourceIBMSecretsManagerSecretsRead(context context.Context, d *schema.R
 	if listSecrets.Metadata != nil {
 		err = d.Set("metadata", dataSourceListSecretsFlattenMetadata(*listSecrets.Metadata))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting metadata %s", err))
+			return fmt.Errorf("Error setting metadata %s", err)
 		}
 	}
 
 	if listSecrets.Resources != nil {
 		err = d.Set("secrets", dataSourceListSecretsFlattenResources(listSecrets.Resources))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resources %s", err))
+			return fmt.Errorf("Error setting resources %s", err)
 		}
 	}
 

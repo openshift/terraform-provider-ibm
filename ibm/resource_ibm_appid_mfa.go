@@ -2,21 +2,22 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDMFA() *schema.Resource {
 	return &schema.Resource{
-		ReadContext:   resourceIBMAppIDMFARead,
-		CreateContext: resourceIBMAppIDMFACreate,
-		UpdateContext: resourceIBMAppIDMFACreate,
-		DeleteContext: resourceIBMAppIDMFADelete,
+		Read:   resourceIBMAppIDMFARead,
+		Create: resourceIBMAppIDMFACreate,
+		Update: resourceIBMAppIDMFACreate,
+		Delete: resourceIBMAppIDMFADelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -34,16 +35,16 @@ func resourceIBMAppIDMFA() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDMFARead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDMFARead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	mfa, resp, err := appIDClient.GetMFAConfigWithContext(ctx, &appid.GetMFAConfigOptions{
+	mfa, resp, err := appIDClient.GetMFAConfigWithContext(context.TODO(), &appid.GetMFAConfigOptions{
 		TenantID: &tenantID,
 	})
 
@@ -54,7 +55,7 @@ func resourceIBMAppIDMFARead(ctx context.Context, d *schema.ResourceData, meta i
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID MFA configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID MFA configuration: %s\n%s", err, resp)
 	}
 
 	if mfa.IsActive != nil {
@@ -66,11 +67,11 @@ func resourceIBMAppIDMFARead(ctx context.Context, d *schema.ResourceData, meta i
 	return nil
 }
 
-func resourceIBMAppIDMFACreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDMFACreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -81,22 +82,22 @@ func resourceIBMAppIDMFACreate(ctx context.Context, d *schema.ResourceData, meta
 		IsActive: &isActive,
 	}
 
-	_, resp, err := appIDClient.UpdateMFAConfigWithContext(ctx, input)
+	_, resp, err := appIDClient.UpdateMFAConfigWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID MFA configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID MFA configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDMFARead(ctx, d, meta)
+	return resourceIBMAppIDMFARead(d, meta)
 }
 
-func resourceIBMAppIDMFADelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDMFADelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -106,10 +107,10 @@ func resourceIBMAppIDMFADelete(ctx context.Context, d *schema.ResourceData, meta
 		IsActive: helpers.Bool(false),
 	}
 
-	_, resp, err := appIDClient.UpdateMFAConfigWithContext(ctx, input)
+	_, resp, err := appIDClient.UpdateMFAConfigWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID MFA configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID MFA configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

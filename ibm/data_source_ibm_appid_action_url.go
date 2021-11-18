@@ -4,15 +4,14 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func dataSourceIBMAppIDActionURL() *schema.Resource {
 	return &schema.Resource{
 		Description: "The custom url to redirect to when Cloud Directory action is executed.",
-		ReadContext: dataSourceIBMAppIDActionURLRead,
+		Read:        dataSourceIBMAppIDActionURLRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -34,23 +33,23 @@ func dataSourceIBMAppIDActionURL() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDActionURLRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDActionURLRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	action := d.Get("action").(string)
 
-	resp, rawResp, err := appIDClient.GetCloudDirectoryActionURLWithContext(ctx, &appid.GetCloudDirectoryActionURLOptions{
+	resp, rawResp, err := appIDClient.GetCloudDirectoryActionURLWithContext(context.TODO(), &appid.GetCloudDirectoryActionURLOptions{
 		TenantID: &tenantID,
 		Action:   &action,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID actionURL: %s\n%s", err, rawResp)
+		return fmt.Errorf("Error getting AppID actionURL: %s\n%s", err, rawResp)
 	}
 
 	if resp.ActionURL != nil {

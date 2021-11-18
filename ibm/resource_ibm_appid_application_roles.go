@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"log"
 	"strings"
 )
 
 func resourceIBMAppIDApplicationRoles() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDApplicationRolesCreate,
-		ReadContext:   resourceIBMAppIDApplicationRolesRead,
-		DeleteContext: resourceIBMAppIDApplicationRolesDelete,
-		UpdateContext: resourceIBMAppIDApplicationRolesUpdate,
+		Create: resourceIBMAppIDApplicationRolesCreate,
+		Read:   resourceIBMAppIDApplicationRolesRead,
+		Delete: resourceIBMAppIDApplicationRolesDelete,
+		Update: resourceIBMAppIDApplicationRolesUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -44,11 +43,11 @@ func resourceIBMAppIDApplicationRoles() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDApplicationRolesCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationRolesCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -63,35 +62,35 @@ func resourceIBMAppIDApplicationRolesCreate(ctx context.Context, d *schema.Resou
 		},
 	}
 
-	_, resp, err := appIDClient.PutApplicationsRolesWithContext(ctx, roleOpts)
+	_, resp, err := appIDClient.PutApplicationsRolesWithContext(context.TODO(), roleOpts)
 
 	if err != nil {
-		return diag.Errorf("Error setting application roles: %s\n%s", err, resp)
+		return fmt.Errorf("Error setting application roles: %s\n%s", err, resp)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, clientID))
 
-	return resourceIBMAppIDApplicationRolesRead(ctx, d, meta)
+	return resourceIBMAppIDApplicationRolesRead(d, meta)
 }
 
-func resourceIBMAppIDApplicationRolesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationRolesRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
 	idParts := strings.Split(id, "/")
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/clientID", d.Id())
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/clientID", d.Id())
 	}
 
 	tenantID := idParts[0]
 	clientID := idParts[1]
 
-	roles, resp, err := appIDClient.GetApplicationRolesWithContext(ctx, &appid.GetApplicationRolesOptions{
+	roles, resp, err := appIDClient.GetApplicationRolesWithContext(context.TODO(), &appid.GetApplicationRolesOptions{
 		TenantID: &tenantID,
 		ClientID: &clientID,
 	})
@@ -103,7 +102,7 @@ func resourceIBMAppIDApplicationRolesRead(ctx context.Context, d *schema.Resourc
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID application roles: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID application roles: %s\n%s", err, resp)
 	}
 
 	var appRoles []interface{}
@@ -115,7 +114,7 @@ func resourceIBMAppIDApplicationRolesRead(ctx context.Context, d *schema.Resourc
 	}
 
 	if err := d.Set("roles", appRoles); err != nil {
-		return diag.Errorf("Error setting application roles: %s", err)
+		return fmt.Errorf("Error setting application roles: %s", err)
 	}
 
 	d.Set("tenant_id", tenantID)
@@ -124,11 +123,11 @@ func resourceIBMAppIDApplicationRolesRead(ctx context.Context, d *schema.Resourc
 	return nil
 }
 
-func resourceIBMAppIDApplicationRolesUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationRolesUpdate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -143,20 +142,20 @@ func resourceIBMAppIDApplicationRolesUpdate(ctx context.Context, d *schema.Resou
 		},
 	}
 
-	_, resp, err := appIDClient.PutApplicationsRolesWithContext(ctx, roleOpts)
+	_, resp, err := appIDClient.PutApplicationsRolesWithContext(context.TODO(), roleOpts)
 
 	if err != nil {
-		return diag.Errorf("Error updating application roles: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating application roles: %s\n%s", err, resp)
 	}
 
-	return resourceIBMAppIDApplicationRolesRead(ctx, d, meta)
+	return resourceIBMAppIDApplicationRolesRead(d, meta)
 }
 
-func resourceIBMAppIDApplicationRolesDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationRolesDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -170,10 +169,10 @@ func resourceIBMAppIDApplicationRolesDelete(ctx context.Context, d *schema.Resou
 		},
 	}
 
-	_, resp, err := appIDClient.PutApplicationsRolesWithContext(ctx, roleOpts)
+	_, resp, err := appIDClient.PutApplicationsRolesWithContext(context.TODO(), roleOpts)
 
 	if err != nil {
-		return diag.Errorf("Error clearing application roles: %s\n%s", err, resp)
+		return fmt.Errorf("Error clearing application roles: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

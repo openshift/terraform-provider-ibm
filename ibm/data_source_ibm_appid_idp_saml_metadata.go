@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDIDPSAMLMetadata() *schema.Resource {
 	return &schema.Resource{
 		Description: "Retrieve SAML metadata",
-		ReadContext: dataSourceIBMAppIDIDPSAMLMetadataRead,
+		Read:        dataSourceIBMAppIDIDPSAMLMetadataRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Type:        schema.TypeString,
@@ -26,25 +27,25 @@ func dataSourceIBMAppIDIDPSAMLMetadata() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDIDPSAMLMetadataRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDIDPSAMLMetadataRead(d *schema.ResourceData, meta interface{}) error {
 	appidClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	metadata, resp, err := appidClient.GetSAMLMetadataWithContext(ctx, &appid.GetSAMLMetadataOptions{
+	metadata, resp, err := appidClient.GetSAMLMetadataWithContext(context.TODO(), &appid.GetSAMLMetadataOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID SAML metadata: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID SAML metadata: %s\n%s", err, resp)
 	}
 
 	if err := d.Set("metadata", metadata); err != nil {
-		return diag.Errorf("Error setting AppID SAML metadata: %s", err)
+		return fmt.Errorf("Error setting AppID SAML metadata: %s", err)
 	}
 
 	d.SetId(tenantID)

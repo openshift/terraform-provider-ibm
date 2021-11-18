@@ -9,9 +9,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	st "github.com/IBM-Cloud/power-go-client/clients/instance"
 	"github.com/IBM-Cloud/power-go-client/errors"
@@ -22,11 +21,11 @@ import (
 
 func resourceIBMPIImage() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMPIImageCreate,
-		ReadContext:   resourceIBMPIImageRead,
-		UpdateContext: resourceIBMPIImageUpdate,
-		DeleteContext: resourceIBMPIImageDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMPIImageCreate,
+		Read:     resourceIBMPIImageRead,
+		Update:   resourceIBMPIImageUpdate,
+		Delete:   resourceIBMPIImageDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(60 * time.Minute),
@@ -124,11 +123,11 @@ func resourceIBMPIImage() *schema.Resource {
 	}
 }
 
-func resourceIBMPIImageCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPIImageCreate(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
 		log.Printf("Failed to get the session")
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := d.Get(helpers.PICloudInstanceId).(string)
@@ -140,16 +139,16 @@ func resourceIBMPIImageCreate(ctx context.Context, d *schema.ResourceData, meta 
 		imageid := v.(string)
 		imageResponse, err := client.Create(imageName, imageid, cloudInstanceID)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 		IBMPIImageID := imageResponse.ImageID
 		d.SetId(fmt.Sprintf("%s/%s", cloudInstanceID, *IBMPIImageID))
 
-		_, err = isWaitForIBMPIImageAvailable(ctx, client, *IBMPIImageID, d.Timeout(schema.TimeoutCreate), cloudInstanceID)
+		_, err = isWaitForIBMPIImageAvailable(context.TODO(), client, *IBMPIImageID, d.Timeout(schema.TimeoutCreate), cloudInstanceID)
 		if err != nil {
 			log.Printf("[DEBUG]  err %s", err)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
@@ -177,44 +176,44 @@ func resourceIBMPIImageCreate(ctx context.Context, d *schema.ResourceData, meta 
 			body.SecretKey = v.(string)
 		}
 
-		imageResponse, err := client.CreateCosImageWithContext(ctx, body, cloudInstanceID)
+		imageResponse, err := client.CreateCosImageWithContext(context.TODO(), body, cloudInstanceID)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 		jobClient := st.NewIBMPIJobClient(sess, cloudInstanceID)
-		_, err = waitForIBMPIJobCompleted(ctx, jobClient, *imageResponse.ID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
+		_, err = waitForIBMPIJobCompleted(context.TODO(), jobClient, *imageResponse.ID, cloudInstanceID, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
-			return diag.Errorf(errors.CreateImageOperationFailed, cloudInstanceID, err)
+			return fmt.Errorf(errors.CreateImageOperationFailed, cloudInstanceID, err)
 		}
 
 		// Once the job is completed find by name
-		image, err := client.GetWithContext(ctx, imageName, cloudInstanceID)
+		image, err := client.GetWithContext(context.TODO(), imageName, cloudInstanceID)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		d.SetId(fmt.Sprintf("%s/%s", cloudInstanceID, *image.ImageID))
 	}
 
-	return resourceIBMPIImageRead(ctx, d, meta)
+	return resourceIBMPIImageRead(d, meta)
 }
 
-func resourceIBMPIImageRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPIImageRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := parts[0]
 	imageID := parts[1]
 
 	imageC := st.NewIBMPIImageClient(sess, cloudInstanceID)
-	imagedata, err := imageC.GetWithContext(ctx, imageID, cloudInstanceID)
+	imagedata, err := imageC.GetWithContext(context.TODO(), imageID, cloudInstanceID)
 	if err != nil {
 		switch err.(type) {
 		case *p_cloud_images.PcloudCloudinstancesImagesGetNotFound:
@@ -223,7 +222,7 @@ func resourceIBMPIImageRead(ctx context.Context, d *schema.ResourceData, meta in
 			return nil
 		}
 		log.Printf("[DEBUG] get image failed %v", err)
-		return diag.Errorf(errors.GetImageOperationFailed, imageID, err)
+		return fmt.Errorf(errors.GetImageOperationFailed, imageID, err)
 	}
 
 	imageid := *imagedata.ImageID
@@ -233,27 +232,27 @@ func resourceIBMPIImageRead(ctx context.Context, d *schema.ResourceData, meta in
 	return nil
 }
 
-func resourceIBMPIImageUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPIImageUpdate(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func resourceIBMPIImageDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMPIImageDelete(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := parts[0]
 	imageID := parts[1]
 	imageC := st.NewIBMPIImageClient(sess, cloudInstanceID)
-	_, err = imageC.DeleteWithContext(ctx, imageID, cloudInstanceID)
+	_, err = imageC.DeleteWithContext(context.TODO(), imageID, cloudInstanceID)
 	if err != nil {
-		return diag.Errorf("Failed to Delete PI Image %s :%v", imageID, err)
+		return fmt.Errorf("Failed to Delete PI Image %s :%v", imageID, err)
 	}
 
 	d.SetId("")
@@ -272,14 +271,14 @@ func isWaitForIBMPIImageAvailable(ctx context.Context, client *st.IBMPIImageClie
 		MinTimeout: 10 * time.Second,
 	}
 
-	return stateConf.WaitForStateContext(ctx)
+	return stateConf.WaitForState()
 }
 
 func isIBMPIImageRefreshFunc(ctx context.Context, client *st.IBMPIImageClient, id, powerinstanceid string) resource.StateRefreshFunc {
 
 	log.Printf("Calling the isIBMPIImageRefreshFunc Refresh Function....")
 	return func() (interface{}, string, error) {
-		image, err := client.GetWithContext(ctx, id, powerinstanceid)
+		image, err := client.GetWithContext(context.TODO(), id, powerinstanceid)
 		if err != nil {
 			return nil, "", err
 		}
@@ -316,5 +315,5 @@ func waitForIBMPIJobCompleted(ctx context.Context, client *st.IBMPIJobClient, jo
 		Delay:      10 * time.Second,
 		MinTimeout: 10 * time.Second,
 	}
-	return stateConf.WaitForStateContext(ctx)
+	return stateConf.WaitForState()
 }

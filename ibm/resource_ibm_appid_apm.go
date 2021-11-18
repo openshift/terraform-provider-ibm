@@ -2,23 +2,24 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
 	"github.com/IBM/go-sdk-core/v5/core"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDAPM() *schema.Resource {
 	return &schema.Resource{
-		Description:   "AppID advanced password management configuration (available for graduated tier only)",
-		ReadContext:   resourceIBMAppIDAPMRead,
-		CreateContext: resourceIBMAppIDAPMCreate,
-		UpdateContext: resourceIBMAppIDAPMCreate,
-		DeleteContext: resourceIBMAppIDAPMDelete,
+		Description: "AppID advanced password management configuration (available for graduated tier only)",
+		Read:        resourceIBMAppIDAPMRead,
+		Create:      resourceIBMAppIDAPMCreate,
+		Update:      resourceIBMAppIDAPMCreate,
+		Delete:      resourceIBMAppIDAPMDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -118,16 +119,16 @@ func resourceIBMAppIDAPM() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDAPMRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDAPMRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	apm, resp, err := appIDClient.GetCloudDirectoryAdvancedPasswordManagementWithContext(ctx, &appid.GetCloudDirectoryAdvancedPasswordManagementOptions{
+	apm, resp, err := appIDClient.GetCloudDirectoryAdvancedPasswordManagementWithContext(context.TODO(), &appid.GetCloudDirectoryAdvancedPasswordManagementOptions{
 		TenantID: &tenantID,
 	})
 
@@ -138,14 +139,14 @@ func resourceIBMAppIDAPMRead(ctx context.Context, d *schema.ResourceData, meta i
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID APM configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID APM configuration: %s\n%s", err, resp)
 	}
 
 	if apm.AdvancedPasswordManagement != nil {
 		d.Set("enabled", *apm.AdvancedPasswordManagement.Enabled)
 
 		if err := d.Set("password_reuse", flattenAppIDAPMPasswordReuse(apm.AdvancedPasswordManagement.PasswordReuse)); err != nil {
-			return diag.Errorf("Failed setting AppID APM password_reuse: %s", err)
+			return fmt.Errorf("Failed setting AppID APM password_reuse: %s", err)
 		}
 
 		if apm.AdvancedPasswordManagement.PreventPasswordWithUsername != nil {
@@ -153,14 +154,14 @@ func resourceIBMAppIDAPMRead(ctx context.Context, d *schema.ResourceData, meta i
 		}
 
 		if err := d.Set("password_expiration", flattenAppIDAPMPasswordExpiration(apm.AdvancedPasswordManagement.PasswordExpiration)); err != nil {
-			return diag.Errorf("Failed setting AppID APM password_expiration: %s", err)
+			return fmt.Errorf("Failed setting AppID APM password_expiration: %s", err)
 		}
 
 		if err := d.Set("lockout_policy", flattenAppIDAPMLockoutPolicy(apm.AdvancedPasswordManagement.LockOutPolicy)); err != nil {
-			return diag.Errorf("Failed setting AppID APM lockout_policy: %s", err)
+			return fmt.Errorf("Failed setting AppID APM lockout_policy: %s", err)
 		}
 		if err := d.Set("min_password_change_interval", flattenAppIDAPMPasswordChangeInterval(apm.AdvancedPasswordManagement.MinPasswordChangeInterval)); err != nil {
-			return diag.Errorf("Failed setting AppID APM min_password_change_interval: %s", err)
+			return fmt.Errorf("Failed setting AppID APM min_password_change_interval: %s", err)
 		}
 
 	}
@@ -169,11 +170,11 @@ func resourceIBMAppIDAPMRead(ctx context.Context, d *schema.ResourceData, meta i
 	return nil
 }
 
-func resourceIBMAppIDAPMCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDAPMCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -193,14 +194,14 @@ func resourceIBMAppIDAPMCreate(ctx context.Context, d *schema.ResourceData, meta
 		},
 	}
 
-	_, resp, err := appIDClient.SetCloudDirectoryAdvancedPasswordManagementWithContext(ctx, config)
+	_, resp, err := appIDClient.SetCloudDirectoryAdvancedPasswordManagementWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID APM configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID APM configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
-	return resourceIBMAppIDAPMRead(ctx, d, meta)
+	return resourceIBMAppIDAPMRead(d, meta)
 }
 
 func expandAppIDAPMPasswordReuse(reuse []interface{}) *appid.ApmSchemaAdvancedPasswordManagementPasswordReuse {
@@ -272,23 +273,23 @@ func expandAppIDAPMMinPasswordChangeInterval(chg []interface{}) *appid.ApmSchema
 	return result
 }
 
-func resourceIBMAppIDAPMDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDAPMDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	config := getDefaultAppIDAPMConfig()
 
-	_, resp, err := appIDClient.SetCloudDirectoryAdvancedPasswordManagementWithContext(ctx, &appid.SetCloudDirectoryAdvancedPasswordManagementOptions{
+	_, resp, err := appIDClient.SetCloudDirectoryAdvancedPasswordManagementWithContext(context.TODO(), &appid.SetCloudDirectoryAdvancedPasswordManagementOptions{
 		TenantID:                   &tenantID,
 		AdvancedPasswordManagement: config,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID APM configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID APM configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

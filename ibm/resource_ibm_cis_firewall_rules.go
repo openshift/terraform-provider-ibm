@@ -8,8 +8,7 @@ import (
 	"fmt"
 
 	"github.com/IBM/networking-go-sdk/firewallrulesv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const (
@@ -25,11 +24,11 @@ const (
 
 func resourceIBMCISFirewallrules() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMCISFirewallrulesCreate,
-		ReadContext:   resourceIBMCISFirewallrulesRead,
-		UpdateContext: resourceIBMCISFirewallrulesUpdate,
-		DeleteContext: resourceIBMCISFirewallrulesDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMCISFirewallrulesCreate,
+		Read:     resourceIBMCISFirewallrulesRead,
+		Update:   resourceIBMCISFirewallrulesUpdate,
+		Delete:   resourceIBMCISFirewallrulesDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			cisID: {
@@ -76,17 +75,17 @@ func resourceIBMCISFirewallrules() *schema.Resource {
 	}
 }
 
-func resourceIBMCISFirewallrulesCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCISFirewallrulesCreate(d *schema.ResourceData, meta interface{}) error {
 
 	sess, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	xAuthtoken := sess.Config.IAMAccessToken
 
 	cisClient, err := meta.(ClientSession).CisFirewallRulesSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	crn := d.Get(cisID).(string)
@@ -112,40 +111,40 @@ func resourceIBMCISFirewallrulesCreate(context context.Context, d *schema.Resour
 
 	opt.SetFirewallRuleInputWithFilterID([]firewallrulesv1.FirewallRuleInputWithFilterID{newFirewallRules})
 
-	result, _, err := cisClient.CreateFirewallRulesWithContext(context, opt)
+	result, _, err := cisClient.CreateFirewallRulesWithContext(context.TODO(), opt)
 	if err != nil || result == nil {
-		return diag.FromErr(fmt.Errorf("Error reading the  %s", err))
+		return fmt.Errorf("Error reading the  %s", err)
 	}
 	d.SetId(convertCisToTfThreeVar(*result.Result[0].ID, zoneID, crn))
 
-	return resourceIBMCISFirewallrulesRead(context, d, meta)
+	return resourceIBMCISFirewallrulesRead(d, meta)
 
 }
-func resourceIBMCISFirewallrulesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCISFirewallrulesRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	xAuthtoken := sess.Config.IAMAccessToken
 
 	cisClient, err := meta.(ClientSession).CisFirewallRulesSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	firwallruleID, zoneID, crn, err := convertTfToCisThreeVar(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	opt := cisClient.NewGetFirewallRuleOptions(xAuthtoken, crn, zoneID, firwallruleID)
 
-	result, response, err := cisClient.GetFirewallRuleWithContext(context, opt)
+	result, response, err := cisClient.GetFirewallRuleWithContext(context.TODO(), opt)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("Error reading the firewall rules %s:%s", err, response))
+		return fmt.Errorf("Error reading the firewall rules %s:%s", err, response)
 	}
 	d.Set(cisID, crn)
 	d.Set(cisDomainID, zoneID)
@@ -156,21 +155,21 @@ func resourceIBMCISFirewallrulesRead(context context.Context, d *schema.Resource
 
 	return nil
 }
-func resourceIBMCISFirewallrulesUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCISFirewallrulesUpdate(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	xAuthtoken := sess.Config.IAMAccessToken
 
 	cisClient, err := meta.(ClientSession).CisFirewallRulesSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	firewallruleID, zoneID, crn, err := convertTfToCisThreeVar(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	if d.HasChange(cisFilterID) ||
@@ -203,36 +202,36 @@ func resourceIBMCISFirewallrulesUpdate(context context.Context, d *schema.Resour
 
 		opt.SetFirewallRulesUpdateInputItem([]firewallrulesv1.FirewallRulesUpdateInputItem{updatefirewallrules})
 
-		result, _, err := cisClient.UpdateFirewllRulesWithContext(context, opt)
+		result, _, err := cisClient.UpdateFirewllRulesWithContext(context.TODO(), opt)
 		if err != nil || result == nil {
-			return diag.FromErr(fmt.Errorf("Error updating the firewall rules %s", err))
+			return fmt.Errorf("Error updating the firewall rules %s", err)
 		}
 	}
-	return resourceIBMCISFirewallrulesRead(context, d, meta)
+	return resourceIBMCISFirewallrulesRead(d, meta)
 }
-func resourceIBMCISFirewallrulesDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCISFirewallrulesDelete(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	xAuthtoken := sess.Config.IAMAccessToken
 
 	cisClient, err := meta.(ClientSession).CisFirewallRulesSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	firewallruleid, zoneID, crn, err := convertTfToCisThreeVar(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	opt := cisClient.NewDeleteFirewallRulesOptions(xAuthtoken, crn, zoneID, firewallruleid)
-	_, response, err := cisClient.DeleteFirewallRulesWithContext(context, opt)
+	_, response, err := cisClient.DeleteFirewallRulesWithContext(context.TODO(), opt)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("Error deleting the  custom resolver %s:%s", err, response))
+		return fmt.Errorf("Error deleting the  custom resolver %s:%s", err, response)
 	}
 
 	d.SetId("")

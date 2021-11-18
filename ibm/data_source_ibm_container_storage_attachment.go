@@ -1,16 +1,14 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMContainerVpcWorkerVolumeAttachment() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMContainerVpcWorkerVolumeAttachmentRead,
+		Read: dataSourceIBMContainerVpcWorkerVolumeAttachmentRead,
 
 		Schema: map[string]*schema.Schema{
 			"volume_attachment_id": {
@@ -64,16 +62,16 @@ func dataSourceIBMContainerVpcWorkerVolumeAttachment() *schema.Resource {
 	}
 }
 
-func dataSourceIBMContainerVpcWorkerVolumeAttachmentRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMContainerVpcWorkerVolumeAttachmentRead(d *schema.ResourceData, meta interface{}) error {
 	wpClient, err := meta.(ClientSession).VpcContainerAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	workersAPI := wpClient.Workers()
 	target, err := getVpcClusterTargetHeader(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	clusterNameorID := d.Get("cluster").(string)
@@ -82,7 +80,7 @@ func dataSourceIBMContainerVpcWorkerVolumeAttachmentRead(context context.Context
 
 	volume, err := workersAPI.GetStorageAttachment(clusterNameorID, workerID, volumeAttachmentID, target)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	d.Set("volume_attachment_name", volume.Name)
 	d.Set("status", volume.Status)

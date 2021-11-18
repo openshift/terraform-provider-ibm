@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 var supportedAppIDCDTemplates = []string{"USER_VERIFICATION", "RESET_PASSWORD", "WELCOME", "PASSWORD_CHANGED", "MFA_VERIFICATION"}
 
 func dataSourceIBMAppIDCloudDirectoryTemplate() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDCloudDirectoryTemplateRead,
+		Read: dataSourceIBMAppIDCloudDirectoryTemplateRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -56,25 +55,25 @@ func dataSourceIBMAppIDCloudDirectoryTemplate() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDCloudDirectoryTemplateRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDCloudDirectoryTemplateRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	templateName := d.Get("template_name").(string)
 	language := d.Get("language").(string)
 
-	template, resp, err := appIDClient.GetTemplateWithContext(ctx, &appid.GetTemplateOptions{
+	template, resp, err := appIDClient.GetTemplateWithContext(context.TODO(), &appid.GetTemplateOptions{
 		TenantID:     &tenantID,
 		TemplateName: &templateName,
 		Language:     &language,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID Cloud Directory template: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Cloud Directory template: %s\n%s", err, resp)
 	}
 
 	if template.Subject != nil {

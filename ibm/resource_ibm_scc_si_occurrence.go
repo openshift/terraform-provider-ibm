@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/scc-go-sdk/findingsv1"
@@ -17,11 +16,11 @@ import (
 
 func resourceIBMSccSiOccurrence() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMSccSiOccurrenceCreate,
-		ReadContext:   resourceIBMSccSiOccurrenceRead,
-		UpdateContext: resourceIBMSccSiOccurrenceUpdate,
-		DeleteContext: resourceIBMSccSiOccurrenceDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMSccSiOccurrenceCreate,
+		Read:     resourceIBMSccSiOccurrenceRead,
+		Update:   resourceIBMSccSiOccurrenceUpdate,
+		Delete:   resourceIBMSccSiOccurrenceDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -308,15 +307,15 @@ func resourceIBMSccSiOccurrenceValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMSccSiOccurrenceCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiOccurrenceCreate(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := d.Get("account_id").(string)
@@ -355,15 +354,15 @@ func resourceIBMSccSiOccurrenceCreate(context context.Context, d *schema.Resourc
 		createOccurrenceOptions.SetReplaceIfExists(d.Get("replace_if_exists").(bool))
 	}
 
-	apiOccurrence, response, err := findingsClient.CreateOccurrenceWithContext(context, createOccurrenceOptions)
+	apiOccurrence, response, err := findingsClient.CreateOccurrenceWithContext(context.TODO(), createOccurrenceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateOccurrenceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateOccurrenceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateOccurrenceWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s/%s", *findingsClient.AccountID, *createOccurrenceOptions.ProviderID, *apiOccurrence.ID))
 
-	return resourceIBMSccSiOccurrenceRead(context, d, meta)
+	return resourceIBMSccSiOccurrenceRead(d, meta)
 }
 
 func resourceIBMSccSiOccurrenceMapToContext(contextMap map[string]interface{}) findingsv1.Context {
@@ -511,17 +510,17 @@ func resourceIBMSccSiOccurrenceMapToKpi(kpiMap map[string]interface{}) findingsv
 	return kpi
 }
 
-func resourceIBMSccSiOccurrenceRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiOccurrenceRead(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getOccurrenceOptions := &findingsv1.GetOccurrenceOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	findingsClient.AccountID = &parts[0]
@@ -531,59 +530,59 @@ func resourceIBMSccSiOccurrenceRead(context context.Context, d *schema.ResourceD
 	getOccurrenceOptions.SetProviderID(parts[1])
 	getOccurrenceOptions.SetOccurrenceID(parts[2])
 
-	apiOccurrence, response, err := findingsClient.GetOccurrenceWithContext(context, getOccurrenceOptions)
+	apiOccurrence, response, err := findingsClient.GetOccurrenceWithContext(context.TODO(), getOccurrenceOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetOccurrenceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetOccurrenceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetOccurrenceWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("provider_id", getOccurrenceOptions.ProviderID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting provider_id: %s", err))
+		return fmt.Errorf("Error setting provider_id: %s", err)
 	}
 	// TODO: handle argument of type bool
 	if err = d.Set("note_name", apiOccurrence.NoteName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting note_name: %s", err))
+		return fmt.Errorf("Error setting note_name: %s", err)
 	}
 	if err = d.Set("kind", apiOccurrence.Kind); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting kind: %s", err))
+		return fmt.Errorf("Error setting kind: %s", err)
 	}
 	if err = d.Set("occurrence_id", apiOccurrence.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting occurrence_id: %s", err))
+		return fmt.Errorf("Error setting occurrence_id: %s", err)
 	}
 	if err = d.Set("resource_url", apiOccurrence.ResourceURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_url: %s", err))
+		return fmt.Errorf("Error setting resource_url: %s", err)
 	}
 	if err = d.Set("remediation", apiOccurrence.Remediation); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting remediation: %s", err))
+		return fmt.Errorf("Error setting remediation: %s", err)
 	}
 	if err = d.Set("create_time", dateTimeToString(apiOccurrence.CreateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting create_time: %s", err))
+		return fmt.Errorf("Error setting create_time: %s", err)
 	}
 	if err = d.Set("update_time", dateTimeToString(apiOccurrence.UpdateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting update_time: %s", err))
+		return fmt.Errorf("Error setting update_time: %s", err)
 	}
 	if apiOccurrence.Context != nil {
 		contextMap := resourceIBMSccSiOccurrenceContextToMap(*apiOccurrence.Context)
 		if len(contextMap) > 0 {
 			if err = d.Set("context", []map[string]interface{}{contextMap}); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting context: %s", err))
+				return fmt.Errorf("Error setting : %s", err)
 			}
 		}
 	}
 	if apiOccurrence.Finding != nil {
 		findingMap := resourceIBMSccSiOccurrenceFindingToMap(*apiOccurrence.Finding)
 		if err = d.Set("finding", []map[string]interface{}{findingMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting finding: %s", err))
+			return fmt.Errorf("Error setting finding: %s", err)
 		}
 	}
 	if apiOccurrence.Kpi != nil {
 		kpiMap := resourceIBMSccSiOccurrenceKpiToMap(*apiOccurrence.Kpi)
 		if err = d.Set("kpi", []map[string]interface{}{kpiMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting kpi: %s", err))
+			return fmt.Errorf("Error setting kpi: %s", err)
 		}
 	}
 	if _, ok := d.GetOk("replace_if_exists"); ok {
@@ -736,17 +735,17 @@ func resourceIBMSccSiOccurrenceKpiToMap(kpi findingsv1.Kpi) map[string]interface
 	return kpiMap
 }
 
-func resourceIBMSccSiOccurrenceUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiOccurrenceUpdate(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateOccurrenceOptions := &findingsv1.UpdateOccurrenceOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	findingsClient.AccountID = &parts[0]
@@ -777,26 +776,26 @@ func resourceIBMSccSiOccurrenceUpdate(context context.Context, d *schema.Resourc
 		kpi := resourceIBMSccSiOccurrenceMapToKpi(d.Get("kpi.0").(map[string]interface{}))
 		updateOccurrenceOptions.SetKpi(&kpi)
 	}
-	_, response, err := findingsClient.UpdateOccurrenceWithContext(context, updateOccurrenceOptions)
+	_, response, err := findingsClient.UpdateOccurrenceWithContext(context.TODO(), updateOccurrenceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] UpdateOccurrenceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("UpdateOccurrenceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("UpdateOccurrenceWithContext failed %s\n%s", err, response)
 	}
 
-	return resourceIBMSccSiOccurrenceRead(context, d, meta)
+	return resourceIBMSccSiOccurrenceRead(d, meta)
 }
 
-func resourceIBMSccSiOccurrenceDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiOccurrenceDelete(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteOccurrenceOptions := &findingsv1.DeleteOccurrenceOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	findingsClient.AccountID = &parts[0]
@@ -804,10 +803,10 @@ func resourceIBMSccSiOccurrenceDelete(context context.Context, d *schema.Resourc
 	deleteOccurrenceOptions.SetProviderID(parts[1])
 	deleteOccurrenceOptions.SetOccurrenceID(parts[2])
 
-	response, err := findingsClient.DeleteOccurrenceWithContext(context, deleteOccurrenceOptions)
+	response, err := findingsClient.DeleteOccurrenceWithContext(context.TODO(), deleteOccurrenceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteOccurrenceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteOccurrenceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteOccurrenceWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

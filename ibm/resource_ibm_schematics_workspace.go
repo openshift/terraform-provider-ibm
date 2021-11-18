@@ -8,13 +8,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/schematics-go-sdk/schematicsv1"
 	"github.com/go-openapi/strfmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 const (
@@ -25,11 +24,11 @@ const (
 
 func resourceIBMSchematicsWorkspace() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMSchematicsWorkspaceCreate,
-		ReadContext:   resourceIBMSchematicsWorkspaceRead,
-		UpdateContext: resourceIBMSchematicsWorkspaceUpdate,
-		DeleteContext: resourceIBMSchematicsWorkspaceDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMSchematicsWorkspaceCreate,
+		Read:     resourceIBMSchematicsWorkspaceRead,
+		Update:   resourceIBMSchematicsWorkspaceUpdate,
+		Delete:   resourceIBMSchematicsWorkspaceDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"applied_shareddata_ids": &schema.Schema{
@@ -475,10 +474,10 @@ func resourceIBMSchematicsWorkspaceValidator() *ResourceValidator {
 	return &ibmSchematicsWorkspaceResourceValidator
 }
 
-func resourceIBMSchematicsWorkspaceCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsWorkspaceCreate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createWorkspaceOptions := &schematicsv1.CreateWorkspaceOptions{}
@@ -631,15 +630,15 @@ func resourceIBMSchematicsWorkspaceCreate(context context.Context, d *schema.Res
 		createWorkspaceOptions.SetXGithubToken(d.Get("x_github_token").(string))
 	}
 
-	workspaceResponse, response, err := schematicsClient.CreateWorkspaceWithContext(context, createWorkspaceOptions)
+	workspaceResponse, response, err := schematicsClient.CreateWorkspaceWithContext(context.TODO(), createWorkspaceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateWorkspaceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateWorkspaceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateWorkspaceWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*workspaceResponse.ID)
 
-	return resourceIBMSchematicsWorkspaceRead(context, d, meta)
+	return resourceIBMSchematicsWorkspaceRead(d, meta)
 }
 
 func resourceIBMSchematicsWorkspaceMapToCatalogRef(catalogRefMap map[string]interface{}) schematicsv1.CatalogRef {
@@ -891,60 +890,60 @@ func resourceIBMSchematicsWorkspaceMapToWorkspaceStatusUpdateRequest(workspaceSt
 	return workspaceStatusUpdateRequest
 }
 
-func resourceIBMSchematicsWorkspaceRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsWorkspaceRead(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getWorkspaceOptions := &schematicsv1.GetWorkspaceOptions{}
 
 	getWorkspaceOptions.SetWID(d.Id())
 
-	workspaceResponse, response, err := schematicsClient.GetWorkspaceWithContext(context, getWorkspaceOptions)
+	workspaceResponse, response, err := schematicsClient.GetWorkspaceWithContext(context.TODO(), getWorkspaceOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetWorkspaceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetWorkspaceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetWorkspaceWithContext failed %s\n%s", err, response)
 	}
 
 	if workspaceResponse.AppliedShareddataIds != nil {
 		if err = d.Set("applied_shareddata_ids", workspaceResponse.AppliedShareddataIds); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting applied_shareddata_ids: %s", err))
+			return fmt.Errorf("Error setting applied_shareddata_ids: %s", err)
 		}
 	}
 	if workspaceResponse.CatalogRef != nil {
 		catalogRefMap := resourceIBMSchematicsWorkspaceCatalogRefToMap(*workspaceResponse.CatalogRef)
 		if err = d.Set("catalog_ref", []map[string]interface{}{catalogRefMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting catalog_ref: %s", err))
+			return fmt.Errorf("Error setting catalog_ref: %s", err)
 		}
 	}
 	if err = d.Set("description", workspaceResponse.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("location", workspaceResponse.Location); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting location: %s", err))
+		return fmt.Errorf("Error setting location: %s", err)
 	}
 	if err = d.Set("name", workspaceResponse.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("resource_group", workspaceResponse.ResourceGroup); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_group: %s", err))
+		return fmt.Errorf("Error setting resource_group: %s", err)
 	}
 	if _, ok := d.GetOk("shared_data"); ok {
 		if workspaceResponse.SharedData != nil {
 			sharedDataMap := resourceIBMSchematicsWorkspaceSharedTargetDataResponseToMap(*workspaceResponse.SharedData)
 			if err = d.Set("shared_data", []map[string]interface{}{sharedDataMap}); err != nil {
-				return diag.FromErr(fmt.Errorf("Error reading shared_data: %s", err))
+				return fmt.Errorf("Error reading shared_data: %s", err)
 			}
 		}
 	}
 	if workspaceResponse.Tags != nil {
 		if err = d.Set("tags", workspaceResponse.Tags); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting tags: %s", err))
+			return fmt.Errorf("Error setting tags: %s", err)
 		}
 	}
 	if workspaceResponse.TemplateData != nil {
@@ -954,53 +953,53 @@ func resourceIBMSchematicsWorkspaceRead(context context.Context, d *schema.Resou
 			templateData = append(templateData, templateDataItemMap)
 		}
 		if err = d.Set("template_env_settings", templateData[0]["env_values"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading env_values: %s", err))
+			return fmt.Errorf("Error reading env_values: %s", err)
 		}
 		if err = d.Set("template_git_folder", templateData[0]["folder"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading folder: %s", err))
+			return fmt.Errorf("Error reading folder: %s", err)
 		}
 		if err = d.Set("template_init_state_file", templateData[0]["init_state_file"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading init_state_file: %s", err))
+			return fmt.Errorf("Error reading init_state_file: %s", err)
 		}
 		if err = d.Set("template_type", templateData[0]["type"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading type: %s", err))
+			return fmt.Errorf("Error reading type: %s", err)
 		}
 		if err = d.Set("template_uninstall_script_name", templateData[0]["uninstall_script_name"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading uninstall_script_name: %s", err))
+			return fmt.Errorf("Error reading uninstall_script_name: %s", err)
 		}
 		if err = d.Set("template_values", templateData[0]["values"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading values: %s", err))
+			return fmt.Errorf("Error reading values: %s", err)
 		}
 		if err = d.Set("template_values_metadata", templateData[0]["values_metadata"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading values_metadata: %s", err))
+			return fmt.Errorf("Error reading values_metadata: %s", err)
 		}
 		if err = d.Set("template_inputs", templateData[0]["variablestore"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading variablestore: %s", err))
+			return fmt.Errorf("Error reading variablestore: %s", err)
 		}
 
 	}
 	if err = d.Set("template_ref", workspaceResponse.TemplateRef); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting template_ref: %s", err))
+		return fmt.Errorf("Error setting template_ref: %s", err)
 	}
 	if workspaceResponse.TemplateRepo != nil {
 		templateRepoMap := resourceIBMSchematicsWorkspaceTemplateRepoResponseToMap(*workspaceResponse.TemplateRepo)
 		if err = d.Set("template_git_branch", templateRepoMap["branch"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading branch: %s", err))
+			return fmt.Errorf("Error reading branch: %s", err)
 		}
 		if err = d.Set("template_git_release", templateRepoMap["release"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading release: %s", err))
+			return fmt.Errorf("Error reading release: %s", err)
 		}
 		if err = d.Set("template_git_repo_sha_value", templateRepoMap["repo_sha_value"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading repo_sha_value: %s", err))
+			return fmt.Errorf("Error reading repo_sha_value: %s", err)
 		}
 		if err = d.Set("template_git_repo_url", templateRepoMap["repo_url"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading repo_url: %s", err))
+			return fmt.Errorf("Error reading repo_url: %s", err)
 		}
 		if err = d.Set("template_git_url", templateRepoMap["url"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading url: %s", err))
+			return fmt.Errorf("Error reading url: %s", err)
 		}
 		if err = d.Set("template_git_has_uploadedgitrepotar", templateRepoMap["has_uploadedgitrepotar"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading has_uploadedgitrepotar: %s", err))
+			return fmt.Errorf("Error reading has_uploadedgitrepotar: %s", err)
 		}
 	}
 	/*if workspaceResponse.Type != nil {
@@ -1011,38 +1010,38 @@ func resourceIBMSchematicsWorkspaceRead(context context.Context, d *schema.Resou
 	if workspaceResponse.WorkspaceStatus != nil {
 		workspaceStatusMap := resourceIBMSchematicsWorkspaceWorkspaceStatusResponseToMap(*workspaceResponse.WorkspaceStatus)
 		if err = d.Set("frozen", workspaceStatusMap["frozen"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading frozen: %s", err))
+			return fmt.Errorf("Error reading frozen: %s", err)
 		}
 		if err = d.Set("frozen_at", workspaceStatusMap["frozen_at"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading frozen_at: %s", err))
+			return fmt.Errorf("Error reading frozen_at: %s", err)
 		}
 		if err = d.Set("frozen_by", workspaceStatusMap["frozen_by"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading frozen_by: %s", err))
+			return fmt.Errorf("Error reading frozen_by: %s", err)
 		}
 		if err = d.Set("locked", workspaceStatusMap["locked"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading locked: %s", err))
+			return fmt.Errorf("Error reading locked: %s", err)
 		}
 		if err = d.Set("locked_by", workspaceStatusMap["locked_by"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading locked_by: %s", err))
+			return fmt.Errorf("Error reading locked_by: %s", err)
 		}
 		if err = d.Set("locked_time", workspaceStatusMap["locked_time"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading locked_time: %s", err))
+			return fmt.Errorf("Error reading locked_time: %s", err)
 		}
 	}
 	if workspaceResponse.CreatedAt != nil {
 		if err = d.Set("created_at", workspaceResponse.CreatedAt.String()); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading created_at: %s", err))
+			return fmt.Errorf("Error reading created_at: %s", err)
 		}
 	}
 	if err = d.Set("created_by", workspaceResponse.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("crn", workspaceResponse.Crn); err != nil {
-		return diag.FromErr(fmt.Errorf("Error reading crn: %s", err))
+		return fmt.Errorf("Error reading crn: %s", err)
 	}
 	if workspaceResponse.LastHealthCheckAt != nil {
 		if err = d.Set("last_health_check_at", workspaceResponse.LastHealthCheckAt.String()); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading last_health_check_at: %s", err))
+			return fmt.Errorf("Error reading last_health_check_at: %s", err)
 		}
 	}
 	if workspaceResponse.RuntimeData != nil {
@@ -1052,27 +1051,27 @@ func resourceIBMSchematicsWorkspaceRead(context context.Context, d *schema.Resou
 			runtimeData = append(runtimeData, runtimeDataItemMap)
 		}
 		if err = d.Set("runtime_data", runtimeData); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting runtime_data: %s", err))
+			return fmt.Errorf("Error setting runtime_data: %s", err)
 		}
 	}
 	if err = d.Set("status", workspaceResponse.Status); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting status: %s", err))
+		return fmt.Errorf("Error setting status: %s", err)
 	}
 	if workspaceResponse.UpdatedAt != nil {
 		if err = d.Set("updated_at", workspaceResponse.UpdatedAt.String()); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading updated_at: %s", err))
+			return fmt.Errorf("Error reading updated_at: %s", err)
 		}
 	}
 	if err = d.Set("updated_by", workspaceResponse.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+		return fmt.Errorf("Error setting updated_by: %s", err)
 	}
 	if workspaceResponse.WorkspaceStatusMsg != nil {
 		workspaceStatusMsgMap := resourceIBMSchematicsWorkspaceWorkspaceStatusMessageToMap(*workspaceResponse.WorkspaceStatusMsg)
 		if err = d.Set("status_code", workspaceStatusMsgMap["status_code"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading status_code: %s", err))
+			return fmt.Errorf("Error reading status_code: %s", err)
 		}
 		if err = d.Set("status_msg", workspaceStatusMsgMap["status_msg"]); err != nil {
-			return diag.FromErr(fmt.Errorf("Error reading status_msg: %s", err))
+			return fmt.Errorf("Error reading status_msg: %s", err)
 		}
 	}
 
@@ -1427,10 +1426,10 @@ func resourceIBMSchematicsWorkspaceWorkspaceStatusMessageToMap(workspaceStatusMe
 	return workspaceStatusMessageMap
 }
 
-func resourceIBMSchematicsWorkspaceUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsWorkspaceUpdate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateWorkspaceOptions := &schematicsv1.UpdateWorkspaceOptions{}
@@ -1613,18 +1612,18 @@ func resourceIBMSchematicsWorkspaceUpdate(context context.Context, d *schema.Res
 
 		if !changed && repoChange {
 			changed = true
-			_, response, err := schematicsClient.ReplaceWorkspaceWithContext(context, replaceWorkspaceOptions)
+			_, response, err := schematicsClient.ReplaceWorkspaceWithContext(context.TODO(), replaceWorkspaceOptions)
 			if err != nil {
 				log.Printf("[DEBUG] ReplaceWorkspaceWithContext failed %s\n%s", err, response)
-				return diag.FromErr(fmt.Errorf("ReplaceWorkspaceWithContext failed %s\n%s", err, response))
+				return fmt.Errorf("ReplaceWorkspaceWithContext failed %s\n%s", err, response)
 			}
 		}
 
 		if !changed && metadataChange {
-			_, response, err := schematicsClient.UpdateWorkspaceWithContext(context, updateWorkspaceOptions)
+			_, response, err := schematicsClient.UpdateWorkspaceWithContext(context.TODO(), updateWorkspaceOptions)
 			if err != nil {
 				log.Printf("[DEBUG] UpdateWorkspaceWithContext failed %s\n%s", err, response)
-				return diag.FromErr(fmt.Errorf("UpdateWorkspaceWithContext failed %s\n%s", err, response))
+				return fmt.Errorf("UpdateWorkspaceWithContext failed %s\n%s", err, response)
 			}
 		}
 
@@ -1651,25 +1650,25 @@ func resourceIBMSchematicsWorkspaceUpdate(context context.Context, d *schema.Res
 				_, response, err := schematicsClient.ReplaceWorkspaceInputs(replaceWorkspaceInputsOptions)
 				if err != nil {
 					log.Printf("[DEBUG] ReplaceWorkspaceInputs failed %s\n%s", err, response)
-					return diag.FromErr(fmt.Errorf("ReplaceWorkspaceInputs failed %s\n%s", err, response))
+					return fmt.Errorf("ReplaceWorkspaceInputs failed %s\n%s", err, response)
 				}
 			}
 		}
 
 	}
 
-	return resourceIBMSchematicsWorkspaceRead(context, d, meta)
+	return resourceIBMSchematicsWorkspaceRead(d, meta)
 }
 
-func resourceIBMSchematicsWorkspaceDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsWorkspaceDelete(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	session, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteWorkspaceOptions := &schematicsv1.DeleteWorkspaceOptions{}
@@ -1679,10 +1678,10 @@ func resourceIBMSchematicsWorkspaceDelete(context context.Context, d *schema.Res
 	iamRefreshToken := session.Config.IAMRefreshToken
 	deleteWorkspaceOptions.SetRefreshToken(iamRefreshToken)
 
-	_, response, err := schematicsClient.DeleteWorkspaceWithContext(context, deleteWorkspaceOptions)
+	_, response, err := schematicsClient.DeleteWorkspaceWithContext(context.TODO(), deleteWorkspaceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteWorkspaceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteWorkspaceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteWorkspaceWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

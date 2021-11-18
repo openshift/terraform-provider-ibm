@@ -4,19 +4,17 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
 
 func dataSourceIBMIamTrustedProfileClaimRule() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMIamTrustedProfileClaimRuleRead,
+		Read: dataSourceIBMIamTrustedProfileClaimRuleRead,
 
 		Schema: map[string]*schema.Schema{
 			"profile_id": &schema.Schema{
@@ -97,10 +95,10 @@ func dataSourceIBMIamTrustedProfileClaimRule() *schema.Resource {
 	}
 }
 
-func dataSourceIBMIamTrustedProfileClaimRuleRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMIamTrustedProfileClaimRuleRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getClaimRuleOptions := &iamidentityv1.GetClaimRuleOptions{}
@@ -111,38 +109,38 @@ func dataSourceIBMIamTrustedProfileClaimRuleRead(context context.Context, d *sch
 	profileClaimRule, response, err := iamIdentityClient.GetClaimRule(getClaimRuleOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetClaimRule failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetClaimRule failed %s\n%s", err, response))
+		return fmt.Errorf("GetClaimRule failed %s\n%s", err, response)
 	}
 	d.SetId(fmt.Sprintf("%s/%s", *getClaimRuleOptions.ProfileID, *profileClaimRule.ID))
 	if err = d.Set("entity_tag", profileClaimRule.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(profileClaimRule.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("modified_at", dateTimeToString(profileClaimRule.ModifiedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 	if err = d.Set("name", profileClaimRule.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("type", profileClaimRule.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting type: %s", err))
+		return fmt.Errorf("Error setting type: %s", err)
 	}
 	if err = d.Set("realm_name", profileClaimRule.RealmName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting realm_name: %s", err))
+		return fmt.Errorf("Error setting realm_name: %s", err)
 	}
 	if err = d.Set("expiration", intValue(profileClaimRule.Expiration)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting expiration: %s", err))
+		return fmt.Errorf("Error setting expiration: %s", err)
 	}
 	if err = d.Set("cr_type", profileClaimRule.CrType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting cr_type: %s", err))
+		return fmt.Errorf("Error setting cr_type: %s", err)
 	}
 
 	if profileClaimRule.Conditions != nil {
 		err = d.Set("conditions", dataSourceProfileClaimRuleFlattenConditions(profileClaimRule.Conditions))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting conditions %s", err))
+			return fmt.Errorf("Error setting conditions %s", err)
 		}
 	}
 

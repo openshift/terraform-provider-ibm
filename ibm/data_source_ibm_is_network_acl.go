@@ -9,15 +9,14 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIBMIsNetworkACL() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMIsNetworkACLRead,
+		Read: dataSourceIBMIsNetworkACLRead,
 
 		Schema: map[string]*schema.Schema{
 			isNetworkACLName: {
@@ -344,10 +343,10 @@ func dataSourceIBMIsNetworkACL() *schema.Resource {
 	}
 }
 
-func dataSourceIBMIsNetworkACLRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMIsNetworkACLRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	vpc_name_str := ""
@@ -366,10 +365,10 @@ func dataSourceIBMIsNetworkACLRead(context context.Context, d *schema.ResourceDa
 			if start != "" {
 				listNetworkAclsOptions.Start = &start
 			}
-			networkACLCollection, response, err := vpcClient.ListNetworkAclsWithContext(context, listNetworkAclsOptions)
+			networkACLCollection, response, err := vpcClient.ListNetworkAclsWithContext(context.TODO(), listNetworkAclsOptions)
 			if err != nil || networkACLCollection == nil {
 				log.Printf("[DEBUG] ListNetworkAclsWithContext failed %s\n%s", err, response)
-				return diag.FromErr(fmt.Errorf("ListNetworkAclsWithContext failed %s\n%s", err, response))
+				return fmt.Errorf("ListNetworkAclsWithContext failed %s\n%s", err, response)
 			}
 			start = GetNext(networkACLCollection.Next)
 			allrecs = append(allrecs, networkACLCollection.NetworkAcls...)
@@ -388,7 +387,7 @@ func dataSourceIBMIsNetworkACLRead(context context.Context, d *schema.ResourceDa
 
 		if !acl_found {
 			log.Printf("[DEBUG] No networkACL found with given VPC %s and ACL name %s", vpc_name_str, network_acl_name)
-			return diag.FromErr(fmt.Errorf("No networkACL found with given VPC %s and ACL name %s", vpc_name_str, network_acl_name))
+			return fmt.Errorf("No networkACL found with given VPC %s and ACL name %s", vpc_name_str, network_acl_name)
 		}
 	} else {
 
@@ -396,52 +395,52 @@ func dataSourceIBMIsNetworkACLRead(context context.Context, d *schema.ResourceDa
 
 		getNetworkACLOptions.SetID(d.Get("network_acl").(string))
 
-		networkACLInst, response, err := vpcClient.GetNetworkACLWithContext(context, getNetworkACLOptions)
+		networkACLInst, response, err := vpcClient.GetNetworkACLWithContext(context.TODO(), getNetworkACLOptions)
 		if err != nil || networkACLInst == nil {
 			log.Printf("[DEBUG] GetNetworkACLWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("GetNetworkACLWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("GetNetworkACLWithContext failed %s\n%s", err, response)
 		}
 		networkACL = networkACLInst
 	}
 	d.SetId(*networkACL.ID)
 	if err = d.Set("created_at", dateTimeToString(networkACL.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("crn", networkACL.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("href", networkACL.Href); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+		return fmt.Errorf("Error setting href: %s", err)
 	}
 	if err = d.Set("name", networkACL.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 
 	if networkACL.ResourceGroup != nil {
 		err = d.Set(isNetworkACLResourceGroup, dataSourceNetworkACLFlattenResourceGroup(*networkACL.ResourceGroup))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resource_group %s", err))
+			return fmt.Errorf("Error setting resource_group %s", err)
 		}
 	}
 
 	if networkACL.Rules != nil {
 		err = d.Set(isNetworkACLRules, dataSourceNetworkACLFlattenRules(networkACL.Rules))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting rules %s", err))
+			return fmt.Errorf("Error setting rules %s", err)
 		}
 	}
 
 	if networkACL.Subnets != nil {
 		err = d.Set("subnets", dataSourceNetworkACLFlattenSubnets(networkACL.Subnets))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting subnets %s", err))
+			return fmt.Errorf("Error setting subnets %s", err)
 		}
 	}
 
 	if networkACL.VPC != nil {
 		err = d.Set("vpc", dataSourceNetworkACLFlattenVPC(*networkACL.VPC))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting vpc %s", err))
+			return fmt.Errorf("Error setting vpc %s", err)
 		}
 	}
 

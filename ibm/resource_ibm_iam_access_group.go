@@ -4,19 +4,18 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMIAMAccessGroup() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMIAMAccessGroupCreate,
-		ReadContext:   resourceIBMIAMAccessGroupRead,
-		UpdateContext: resourceIBMIAMAccessGroupUpdate,
-		DeleteContext: resourceIBMIAMAccessGroupDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMIAMAccessGroupCreate,
+		Read:     resourceIBMIAMAccessGroupRead,
+		Update:   resourceIBMIAMAccessGroupUpdate,
+		Delete:   resourceIBMIAMAccessGroupDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -46,15 +45,15 @@ func resourceIBMIAMAccessGroup() *schema.Resource {
 	}
 }
 
-func resourceIBMIAMAccessGroupCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupCreate(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	name := d.Get("name").(string)
@@ -65,18 +64,18 @@ func resourceIBMIAMAccessGroupCreate(context context.Context, d *schema.Resource
 	}
 	agrp, detailedResponse, err := iamAccessGroupsClient.CreateAccessGroup(creatAccessGroupOptions)
 	if err != nil || agrp == nil {
-		return diag.FromErr(fmt.Errorf("Error creating access group: %s. API Response: %s", err, detailedResponse))
+		return fmt.Errorf("Error creating access group: %s. API Response: %s", err, detailedResponse)
 	}
 
 	d.SetId(*agrp.ID)
 
-	return resourceIBMIAMAccessGroupRead(context, d, meta)
+	return resourceIBMIAMAccessGroupRead(d, meta)
 }
 
-func resourceIBMIAMAccessGroupRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupRead(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	agrpID := d.Id()
 	getAccessGroupOptions := iamAccessGroupsClient.NewGetAccessGroupOptions(agrpID)
@@ -85,7 +84,7 @@ func resourceIBMIAMAccessGroupRead(context context.Context, d *schema.ResourceDa
 		if detailedResponse != nil && detailedResponse.StatusCode == 404 {
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("Error retrieving access group: %s. API Response: %s", err, detailedResponse))
+		return fmt.Errorf("Error retrieving access group: %s. API Response: %s", err, detailedResponse)
 	}
 	version := detailedResponse.GetHeaders().Get("etag")
 	d.Set("name", agrp.Name)
@@ -95,10 +94,10 @@ func resourceIBMIAMAccessGroupRead(context context.Context, d *schema.ResourceDa
 	return nil
 }
 
-func resourceIBMIAMAccessGroupUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	agrpID := d.Id()
 
@@ -121,18 +120,18 @@ func resourceIBMIAMAccessGroupUpdate(context context.Context, d *schema.Resource
 	if hasChange {
 		agrp, detailedResponse, err := iamAccessGroupsClient.UpdateAccessGroup(updateAccessGroupOptions)
 		if err != nil || agrp == nil {
-			return diag.FromErr(fmt.Errorf("Error updating access group: %s. API Response: %s", err, detailedResponse))
+			return fmt.Errorf("Error updating access group: %s. API Response: %s", err, detailedResponse)
 		}
 	}
 
-	return resourceIBMIAMAccessGroupRead(context, d, meta)
+	return resourceIBMIAMAccessGroupRead(d, meta)
 
 }
 
-func resourceIBMIAMAccessGroupDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupDelete(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	agID := d.Id()
@@ -141,7 +140,7 @@ func resourceIBMIAMAccessGroupDelete(context context.Context, d *schema.Resource
 	deleteAccessGroupOptions.SetForce(force)
 	detailedResponse, err := iamAccessGroupsClient.DeleteAccessGroup(deleteAccessGroupOptions)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Error deleting access group: %s, API Response: %s", err, detailedResponse))
+		return fmt.Errorf("Error deleting access group: %s, API Response: %s", err, detailedResponse)
 	}
 
 	d.SetId("")

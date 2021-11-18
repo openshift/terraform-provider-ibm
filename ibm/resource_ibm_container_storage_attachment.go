@@ -1,16 +1,14 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	v2 "github.com/IBM-Cloud/bluemix-go/api/container/containerv2"
 	"github.com/IBM-Cloud/bluemix-go/bmxerror"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const (
@@ -28,11 +26,11 @@ const (
 func resourceIBMContainerVpcWorkerVolumeAttachment() *schema.Resource {
 
 	return &schema.Resource{
-		CreateContext: resourceIBMContainerVpcWorkerVolumeAttachmentCreate,
-		ReadContext:   resourceIBMContainerVpcWorkerVolumeAttachmentRead,
-		DeleteContext: resourceIBMContainerVpcWorkerVolumeAttachmentDelete,
-		Exists:        resourceIBMContainerVpcWorkerVolumeAttachmentExists,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMContainerVpcWorkerVolumeAttachmentCreate,
+		Read:     resourceIBMContainerVpcWorkerVolumeAttachmentRead,
+		Delete:   resourceIBMContainerVpcWorkerVolumeAttachmentDelete,
+		Exists:   resourceIBMContainerVpcWorkerVolumeAttachmentExists,
+		Importer: &schema.ResourceImporter{},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(15 * time.Minute),
 			Delete: schema.DefaultTimeout(10 * time.Minute),
@@ -94,11 +92,11 @@ func resourceIBMContainerVpcWorkerVolumeAttachment() *schema.Resource {
 	}
 }
 
-func resourceIBMContainerVpcWorkerVolumeAttachmentCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMContainerVpcWorkerVolumeAttachmentCreate(d *schema.ResourceData, meta interface{}) error {
 
 	wpClient, err := meta.(ClientSession).VpcContainerAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	workersAPI := wpClient.Workers()
@@ -109,7 +107,7 @@ func resourceIBMContainerVpcWorkerVolumeAttachmentCreate(context context.Context
 
 	target, err := getVpcClusterTargetHeader(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	attachVolumeRequest := v2.VolumeRequest{
 		Cluster:  clusterNameorID,
@@ -119,31 +117,31 @@ func resourceIBMContainerVpcWorkerVolumeAttachmentCreate(context context.Context
 
 	volumeattached, err := workersAPI.CreateStorageAttachment(attachVolumeRequest, target)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	d.SetId(fmt.Sprintf("%s/%s/%s", clusterNameorID, workerID, volumeattached.Id))
 	_, attachErr := waitforVolumetoAttach(d, meta)
 	if attachErr != nil {
-		return diag.FromErr(attachErr)
+		return attachErr
 	}
-	return resourceIBMContainerVpcWorkerVolumeAttachmentRead(context, d, meta)
+	return resourceIBMContainerVpcWorkerVolumeAttachmentRead(d, meta)
 }
 
-func resourceIBMContainerVpcWorkerVolumeAttachmentRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMContainerVpcWorkerVolumeAttachmentRead(d *schema.ResourceData, meta interface{}) error {
 	wpClient, err := meta.(ClientSession).VpcContainerAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	workersAPI := wpClient.Workers()
 	target, err := getVpcClusterTargetHeader(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	clusterNameorID := parts[0]
 	workerID := parts[1]
@@ -151,7 +149,7 @@ func resourceIBMContainerVpcWorkerVolumeAttachmentRead(context context.Context, 
 
 	volume, err := workersAPI.GetStorageAttachment(clusterNameorID, workerID, volumeAttachmentID, target)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	d.Set("cluster", clusterNameorID)
 	d.Set("worker", workerID)
@@ -162,21 +160,21 @@ func resourceIBMContainerVpcWorkerVolumeAttachmentRead(context context.Context, 
 	return nil
 }
 
-func resourceIBMContainerVpcWorkerVolumeAttachmentDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMContainerVpcWorkerVolumeAttachmentDelete(d *schema.ResourceData, meta interface{}) error {
 	wpClient, err := meta.(ClientSession).VpcContainerAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	workersAPI := wpClient.Workers()
 	target, err := getVpcClusterTargetHeader(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	clusterNameorID := parts[0]
 	workerID := parts[1]
@@ -194,13 +192,13 @@ func resourceIBMContainerVpcWorkerVolumeAttachmentDelete(context context.Context
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("Failed to delete the volume attachment: %s", deleteErr))
+		return fmt.Errorf("Failed to delete the volume attachment: %s", deleteErr)
 	}
 
 	_, err = waitForStorageAttachmentDelete(d, meta)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf(
-			"Error waiting for storage attachment (%s) to be deleted: %s", d.Id(), err))
+		return fmt.Errorf(
+			"Error waiting for storage attachment (%s) to be deleted: %s", d.Id(), err)
 	}
 
 	d.SetId("")

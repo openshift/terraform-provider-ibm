@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDThemeText() *schema.Resource {
 	return &schema.Resource{
 		Description: "The theme texts of the App ID login widget",
-		ReadContext: dataSourceIBMAppIDThemeTextRead,
+		Read:        dataSourceIBMAppIDThemeTextRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Type:        schema.TypeString,
@@ -29,21 +30,21 @@ func dataSourceIBMAppIDThemeText() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDThemeTextRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDThemeTextRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	text, resp, err := appIDClient.GetThemeTextWithContext(ctx, &appid.GetThemeTextOptions{
+	text, resp, err := appIDClient.GetThemeTextWithContext(context.TODO(), &appid.GetThemeTextOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID theme text: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID theme text: %s\n%s", err, resp)
 	}
 
 	if text.TabTitle != nil {

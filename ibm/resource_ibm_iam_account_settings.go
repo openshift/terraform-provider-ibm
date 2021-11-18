@@ -4,12 +4,10 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
@@ -23,11 +21,11 @@ const (
 
 func resourceIbmIamAccountSettings() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmIamAccountSettingsCreate,
-		ReadContext:   resourceIbmIamAccountSettingsRead,
-		UpdateContext: resourceIbmIamAccountSettingsUpdate,
-		DeleteContext: resourceIbmIamAccountSettingsDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmIamAccountSettingsCreate,
+		Read:     resourceIbmIamAccountSettingsRead,
+		Update:   resourceIbmIamAccountSettingsUpdate,
+		Delete:   resourceIbmIamAccountSettingsDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"include_history": &schema.Schema{
@@ -168,17 +166,17 @@ func resourceIBMIAMAccountSettingsValidator() *ResourceValidator {
 	return &ibmIAMAccountSettingsValidator
 }
 
-func resourceIbmIamAccountSettingsCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamAccountSettingsCreate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getAccountSettingsOptions := &iamidentityv1.GetAccountSettingsOptions{}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	getAccountSettingsOptions.SetAccountID(userDetails.userAccount)
 	if _, ok := d.GetOk("include_history"); ok {
@@ -188,18 +186,18 @@ func resourceIbmIamAccountSettingsCreate(context context.Context, d *schema.Reso
 	accountSettingsResponse, response, err := iamIdentityClient.GetAccountSettings(getAccountSettingsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetAccountSettings failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(fmt.Sprintf("%s", *accountSettingsResponse.AccountID))
 
-	return resourceIbmIamAccountSettingsUpdate(context, d, meta)
+	return resourceIbmIamAccountSettingsUpdate(d, meta)
 }
 
-func resourceIbmIamAccountSettingsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamAccountSettingsRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getAccountSettingsOptions := &iamidentityv1.GetAccountSettingsOptions{}
@@ -214,23 +212,23 @@ func resourceIbmIamAccountSettingsRead(context context.Context, d *schema.Resour
 			return nil
 		}
 		log.Printf("[DEBUG] GetAccountSettings failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	if err = d.Set("restrict_create_service_id", accountSettingsResponse.RestrictCreateServiceID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting restrict_create_service_id: %s", err))
+		return fmt.Errorf("Error setting restrict_create_service_id: %s", err)
 	}
 	if err = d.Set("restrict_create_platform_apikey", accountSettingsResponse.RestrictCreatePlatformApikey); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting restrict_create_platform_apikey: %s", err))
+		return fmt.Errorf("Error setting restrict_create_platform_apikey: %s", err)
 	}
 	if err = d.Set("allowed_ip_addresses", accountSettingsResponse.AllowedIPAddresses); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting allowed_ip_addresses: %s", err))
+		return fmt.Errorf("Error setting allowed_ip_addresses: %s", err)
 	}
 	if err = d.Set("entity_tag", accountSettingsResponse.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("mfa", accountSettingsResponse.Mfa); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting mfa: %s", err))
+		return fmt.Errorf("Error setting mfa: %s", err)
 	}
 	if accountSettingsResponse.History != nil {
 		history := []map[string]interface{}{}
@@ -239,17 +237,17 @@ func resourceIbmIamAccountSettingsRead(context context.Context, d *schema.Resour
 			history = append(history, historyItemMap)
 		}
 		if err = d.Set("history", history); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting history: %s", err))
+			return fmt.Errorf("Error setting history: %s", err)
 		}
 	}
 	if err = d.Set("session_expiration_in_seconds", accountSettingsResponse.SessionExpirationInSeconds); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting session_expiration_in_seconds: %s", err))
+		return fmt.Errorf("Error setting session_expiration_in_seconds: %s", err)
 	}
 	if err = d.Set("session_invalidation_in_seconds", accountSettingsResponse.SessionInvalidationInSeconds); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting session_invalidation_in_seconds: %s", err))
+		return fmt.Errorf("Error setting session_invalidation_in_seconds: %s", err)
 	}
 	if err = d.Set("max_sessions_per_identity", accountSettingsResponse.MaxSessionsPerIdentity); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting max_sessions_per_identity: %s", err))
+		return fmt.Errorf("Error setting max_sessions_per_identity: %s", err)
 	}
 
 	return nil
@@ -268,10 +266,10 @@ func resourceIbmIamAccountSettingsEnityHistoryRecordToMap(enityHistoryRecord iam
 	return enityHistoryRecordMap
 }
 
-func resourceIbmIamAccountSettingsUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamAccountSettingsUpdate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateAccountSettingsOptions := &iamidentityv1.UpdateAccountSettingsOptions{}
@@ -327,14 +325,14 @@ func resourceIbmIamAccountSettingsUpdate(context context.Context, d *schema.Reso
 		_, response, err := iamIdentityClient.UpdateAccountSettings(updateAccountSettingsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateAccountSettings failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
-	return resourceIbmIamAccountSettingsRead(context, d, meta)
+	return resourceIbmIamAccountSettingsRead(d, meta)
 }
 
-func resourceIbmIamAccountSettingsDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamAccountSettingsDelete(d *schema.ResourceData, meta interface{}) error {
 
 	// DELETE NOT SUPPORTED
 	d.SetId("")

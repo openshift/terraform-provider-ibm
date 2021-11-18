@@ -4,7 +4,6 @@
 package ibm
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,9 +14,9 @@ import (
 	"time"
 
 	rc "github.com/IBM/platform-services-go-sdk/resourcecontrollerv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	validation "github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	validation "github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
 	//	"github.com/IBM-Cloud/bluemix-go/api/globaltagging/globaltaggingv3"
 	"github.com/IBM-Cloud/bluemix-go/api/icd/icdv4"
@@ -918,7 +917,7 @@ func checkMbValue(name string, limits MbLimit, divider int, diff *schema.Resourc
 	return checkGroupValue(name, groupLimit, divider, diff)
 }
 
-func resourceIBMDatabaseInstanceDiff(_ context.Context, diff *schema.ResourceDiff, meta interface{}) error {
+func resourceIBMDatabaseInstanceDiff(diff *schema.ResourceDiff, meta interface{}) error {
 
 	err := resourceTagsCustomizeDiff(diff)
 	if err != nil {

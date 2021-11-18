@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsInstanceDisks() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsInstanceDisksRead,
+		Read: dataSourceIbmIsInstanceDisksRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance": &schema.Schema{
@@ -73,19 +72,19 @@ func dataSourceIbmIsInstanceDisks() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsInstanceDisksRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsInstanceDisksRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	listInstanceDisksOptions := &vpcv1.ListInstanceDisksOptions{}
 
 	listInstanceDisksOptions.SetInstanceID(d.Get("instance").(string))
 
-	instanceDiskCollection, response, err := vpcClient.ListInstanceDisksWithContext(context, listInstanceDisksOptions)
+	instanceDiskCollection, response, err := vpcClient.ListInstanceDisksWithContext(context.TODO(), listInstanceDisksOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListInstanceDisksWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(dataSourceIbmIsInstanceDisksID(d))
@@ -93,7 +92,7 @@ func dataSourceIbmIsInstanceDisksRead(context context.Context, d *schema.Resourc
 	if instanceDiskCollection.Disks != nil {
 		err = d.Set(isInstanceDisks, dataSourceInstanceDiskCollectionFlattenDisks(instanceDiskCollection.Disks))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting disks %s", err))
+			return fmt.Errorf("Error setting disks %s", err)
 		}
 	}
 

@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDIDPGoogle() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns the Google identity provider configuration.",
-		ReadContext: dataSourceIBMAppIDIDPGoogleRead,
+		Read:        dataSourceIBMAppIDIDPGoogleRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -50,21 +51,21 @@ func dataSourceIBMAppIDIDPGoogle() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDIDPGoogleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDIDPGoogleRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	gg, resp, err := appIDClient.GetGoogleIDPWithContext(ctx, &appid.GetGoogleIDPOptions{
+	gg, resp, err := appIDClient.GetGoogleIDPWithContext(context.TODO(), &appid.GetGoogleIDPOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID Google IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Google IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *gg.IsActive)
@@ -75,7 +76,7 @@ func dataSourceIBMAppIDIDPGoogleRead(ctx context.Context, d *schema.ResourceData
 
 	if gg.Config != nil {
 		if err := d.Set("config", flattenIBMAppIDGoogleIDPConfig(gg.Config)); err != nil {
-			return diag.Errorf("Failed setting AppID Google IDP config: %s", err)
+			return fmt.Errorf("Failed setting AppID Google IDP config: %s", err)
 		}
 	}
 

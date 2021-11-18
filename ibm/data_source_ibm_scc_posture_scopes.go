@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/scc-go-sdk/posturemanagementv1"
 )
 
 func dataSourceIBMSccPostureScopes() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccPostureScopesRead,
+		Read: dataSourceIBMSccPostureScopesRead,
 
 		Schema: map[string]*schema.Schema{
 			"scope_id": &schema.Schema{
@@ -135,18 +134,18 @@ func dataSourceIBMSccPostureScopes() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccPostureScopesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccPostureScopesRead(d *schema.ResourceData, meta interface{}) error {
 	postureManagementClient, err := meta.(ClientSession).PostureManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listScopesOptions := &posturemanagementv1.ListScopesOptions{}
 
-	scopesList, response, err := postureManagementClient.ListScopesWithContext(context, listScopesOptions)
+	scopesList, response, err := postureManagementClient.ListScopesWithContext(context.TODO(), listScopesOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListScopesWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ListScopesWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ListScopesWithContext failed %s\n%s", err, response)
 	}
 
 	// Use the provided filter argument and construct a new list with only the requested resource(s)
@@ -169,7 +168,7 @@ func dataSourceIBMSccPostureScopesRead(context context.Context, d *schema.Resour
 
 	if suppliedFilter {
 		if len(scopesList.Scopes) == 0 {
-			return diag.FromErr(fmt.Errorf("no Scopes found with scopeID %s", scopeID))
+			return fmt.Errorf("no Scopes found with scopeID %s", scopeID)
 		}
 		d.SetId(scopeID)
 	} else {
@@ -179,7 +178,7 @@ func dataSourceIBMSccPostureScopesRead(context context.Context, d *schema.Resour
 	if scopesList.Scopes != nil {
 		err = d.Set("scopes", dataSourceScopesListFlattenScopes(scopesList.Scopes))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting scopes %s", err))
+			return fmt.Errorf("Error setting scopes %s", err)
 		}
 	}
 

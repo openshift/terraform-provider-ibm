@@ -2,22 +2,23 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func resourceIBMAppIDIDPCloudDirectory() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDIDPCloudDirectoryCreate,
-		ReadContext:   resourceIBMAppIDIDPCloudDirectoryRead,
-		DeleteContext: resourceIBMAppIDIDPCloudDirectoryDelete,
-		UpdateContext: resourceIBMAppIDIDPCloudDirectoryUpdate,
+		Create: resourceIBMAppIDIDPCloudDirectoryCreate,
+		Read:   resourceIBMAppIDIDPCloudDirectoryRead,
+		Delete: resourceIBMAppIDIDPCloudDirectoryDelete,
+		Update: resourceIBMAppIDIDPCloudDirectoryUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -75,16 +76,16 @@ func resourceIBMAppIDIDPCloudDirectory() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDIDPCloudDirectoryRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCloudDirectoryRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	config, resp, err := appIDClient.GetCloudDirectoryIDPWithContext(ctx, &appid.GetCloudDirectoryIDPOptions{
+	config, resp, err := appIDClient.GetCloudDirectoryIDPWithContext(context.TODO(), &appid.GetCloudDirectoryIDPOptions{
 		TenantID: &tenantID,
 	})
 
@@ -95,7 +96,7 @@ func resourceIBMAppIDIDPCloudDirectoryRead(ctx context.Context, d *schema.Resour
 			return nil
 		}
 
-		return diag.Errorf("Error loading AppID Cloud Directory IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Cloud Directory IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *config.IsActive)
@@ -118,7 +119,7 @@ func resourceIBMAppIDIDPCloudDirectoryRead(ctx context.Context, d *schema.Resour
 			d.Set("identity_confirm_access_mode", *config.Config.Interactions.IdentityConfirmation.AccessMode)
 
 			if err := d.Set("identity_confirm_methods", config.Config.Interactions.IdentityConfirmation.Methods); err != nil {
-				return diag.Errorf("Error setting AppID IDP Cloud Directory identity confirm methods: %s", err)
+				return fmt.Errorf("Error setting AppID IDP Cloud Directory identity confirm methods: %s", err)
 			}
 		}
 	}
@@ -128,11 +129,11 @@ func resourceIBMAppIDIDPCloudDirectoryRead(ctx context.Context, d *schema.Resour
 	return nil
 }
 
-func resourceIBMAppIDIDPCloudDirectoryCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCloudDirectoryCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -163,36 +164,36 @@ func resourceIBMAppIDIDPCloudDirectoryCreate(ctx context.Context, d *schema.Reso
 		config.Config.Interactions.IdentityConfirmation.Methods = expandStringList(methods.([]interface{}))
 	}
 
-	_, resp, err := appIDClient.SetCloudDirectoryIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetCloudDirectoryIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error applying AppID Cloud Directory IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error applying AppID Cloud Directory IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDIDPCloudDirectoryRead(ctx, d, meta)
+	return resourceIBMAppIDIDPCloudDirectoryRead(d, meta)
 }
 
-func resourceIBMAppIDIDPCloudDirectoryUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCloudDirectoryUpdate(d *schema.ResourceData, m interface{}) error {
 	// since this is configuration we can reuse create method
-	return resourceIBMAppIDIDPCloudDirectoryCreate(ctx, d, m)
+	return resourceIBMAppIDIDPCloudDirectoryCreate(d, m)
 }
 
-func resourceIBMAppIDIDPCloudDirectoryDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPCloudDirectoryDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	config := ibmAppIDIDPCloudDirectoryDefaults(tenantID)
 
-	_, resp, err := appIDClient.SetCloudDirectoryIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetCloudDirectoryIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID Cloud Directory IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID Cloud Directory IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
