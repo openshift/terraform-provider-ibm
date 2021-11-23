@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsDedicatedHostGroups() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsDedicatedHostGroupsRead,
+		Read: dataSourceIbmIsDedicatedHostGroupsRead,
 
 		Schema: map[string]*schema.Schema{
 			"host_groups": &schema.Schema{
@@ -155,10 +154,10 @@ func dataSourceIbmIsDedicatedHostGroups() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsDedicatedHostGroupsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsDedicatedHostGroupsRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	listDedicatedHostGroupsOptions := &vpcv1.ListDedicatedHostGroupsOptions{}
 
@@ -168,10 +167,10 @@ func dataSourceIbmIsDedicatedHostGroupsRead(context context.Context, d *schema.R
 		if start != "" {
 			listDedicatedHostGroupsOptions.Start = &start
 		}
-		listDedicatedHostGroupsOptions, response, err := vpcClient.ListDedicatedHostGroupsWithContext(context, listDedicatedHostGroupsOptions)
+		listDedicatedHostGroupsOptions, response, err := vpcClient.ListDedicatedHostGroupsWithContext(context.TODO(), listDedicatedHostGroupsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListDedicatedHostGroupsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		start = GetNext(listDedicatedHostGroupsOptions.Next)
 		allrecs = append(allrecs, listDedicatedHostGroupsOptions.Groups...)
@@ -185,11 +184,11 @@ func dataSourceIbmIsDedicatedHostGroupsRead(context context.Context, d *schema.R
 		d.SetId(dataSourceIbmIsDedicatedHostGroupsID(d))
 		err = d.Set("host_groups", dataSourceDedicatedHostGroupCollectionFlattenGroups(allrecs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting groups %s", err))
+			return fmt.Errorf("Error setting groups %s", err)
 		}
 
 		if err = d.Set("total_count", len(allrecs)); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting total_count: %s", err))
+			return fmt.Errorf("Error setting total_count: %s", err)
 		}
 
 	}

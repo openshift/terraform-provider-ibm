@@ -2,14 +2,15 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDIDPCloudDirectory() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDIDPCloudDirectoryRead,
+		Read: dataSourceIBMAppIDIDPCloudDirectoryRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The service `tenantId`",
@@ -61,21 +62,21 @@ func dataSourceIBMAppIDIDPCloudDirectory() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDIDPCloudDirectoryRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDIDPCloudDirectoryRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	config, resp, err := appIDClient.GetCloudDirectoryIDPWithContext(ctx, &appid.GetCloudDirectoryIDPOptions{
+	config, resp, err := appIDClient.GetCloudDirectoryIDPWithContext(context.TODO(), &appid.GetCloudDirectoryIDPOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID Cloud Directory IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Cloud Directory IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *config.IsActive)
@@ -97,7 +98,7 @@ func dataSourceIBMAppIDIDPCloudDirectoryRead(ctx context.Context, d *schema.Reso
 			d.Set("reset_password_notification_enabled", *config.Config.Interactions.ResetPasswordNotificationEnable)
 			d.Set("identity_confirm_access_mode", *config.Config.Interactions.IdentityConfirmation.AccessMode)
 			if err := d.Set("identity_confirm_methods", config.Config.Interactions.IdentityConfirmation.Methods); err != nil {
-				return diag.Errorf("Error setting AppID Cloud Directory IDP identity_confirm_methods: %s", err)
+				return fmt.Errorf("Error setting AppID Cloud Directory IDP identity_confirm_methods: %s", err)
 			}
 		}
 	}

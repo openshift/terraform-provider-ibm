@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDApplication() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDApplicationRead,
+		Read: dataSourceIBMAppIDApplicationRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The service `tenantId`",
@@ -56,23 +55,23 @@ func dataSourceIBMAppIDApplication() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDApplicationRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDApplicationRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	clientID := d.Get("client_id").(string)
 
-	app, resp, err := appIDClient.GetApplicationWithContext(ctx, &appid.GetApplicationOptions{
+	app, resp, err := appIDClient.GetApplicationWithContext(context.TODO(), &appid.GetApplicationOptions{
 		TenantID: &tenantID,
 		ClientID: &clientID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID application: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID application: %s\n%s", err, resp)
 	}
 
 	if app.Name != nil {

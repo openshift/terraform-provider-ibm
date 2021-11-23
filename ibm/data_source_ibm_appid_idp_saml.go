@@ -2,14 +2,15 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDIDPSAML() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDIDPSAMLRead,
+		Read: dataSourceIBMAppIDIDPSAMLRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -93,28 +94,28 @@ func dataSourceIBMAppIDIDPSAML() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDIDPSAMLRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDIDPSAMLRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	saml, resp, err := appIDClient.GetSAMLIDPWithContext(ctx, &appid.GetSAMLIDPOptions{
+	saml, resp, err := appIDClient.GetSAMLIDPWithContext(context.TODO(), &appid.GetSAMLIDPOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading SAML IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading SAML IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *saml.IsActive)
 
 	if saml.Config != nil {
 		if err := d.Set("config", flattenAppIDIDPSAMLConfig(saml.Config)); err != nil {
-			return diag.Errorf("Failed setting AppID IDP SAML config: %s", err)
+			return fmt.Errorf("Failed setting AppID IDP SAML config: %s", err)
 		}
 	}
 

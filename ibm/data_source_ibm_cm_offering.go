@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/catalogmanagementv1"
 )
 
 func dataSourceIBMCmOffering() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMCmOfferingRead,
+		Read: dataSourceIBMCmOfferingRead,
 
 		Schema: map[string]*schema.Schema{
 			"catalog_identifier": &schema.Schema{
@@ -155,10 +154,10 @@ func dataSourceIBMCmOffering() *schema.Resource {
 	}
 }
 
-func dataSourceIBMCmOfferingRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMCmOfferingRead(d *schema.ResourceData, meta interface{}) error {
 	catalogManagementClient, err := meta.(ClientSession).CatalogManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getOfferingOptions := &catalogmanagementv1.GetOfferingOptions{}
@@ -166,78 +165,78 @@ func dataSourceIBMCmOfferingRead(context context.Context, d *schema.ResourceData
 	getOfferingOptions.SetCatalogIdentifier(d.Get("catalog_identifier").(string))
 	getOfferingOptions.SetOfferingID(d.Get("offering_id").(string))
 
-	offering, response, err := catalogManagementClient.GetOfferingWithContext(context, getOfferingOptions)
+	offering, response, err := catalogManagementClient.GetOfferingWithContext(context.TODO(), getOfferingOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetOfferingWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*offering.ID)
 	if err = d.Set("url", offering.URL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting url: %s", err))
+		return fmt.Errorf("Error setting url: %s", err)
 	}
 	if err = d.Set("crn", offering.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("label", offering.Label); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting label: %s", err))
+		return fmt.Errorf("Error setting label: %s", err)
 	}
 	if err = d.Set("name", offering.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("offering_icon_url", offering.OfferingIconURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting offering_icon_url: %s", err))
+		return fmt.Errorf("Error setting offering_icon_url: %s", err)
 	}
 	if err = d.Set("offering_docs_url", offering.OfferingDocsURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting offering_docs_url: %s", err))
+		return fmt.Errorf("Error setting offering_docs_url: %s", err)
 	}
 	if err = d.Set("offering_support_url", offering.OfferingSupportURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting offering_support_url: %s", err))
+		return fmt.Errorf("Error setting offering_support_url: %s", err)
 	}
 	if err = d.Set("short_description", offering.ShortDescription); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting short_description: %s", err))
+		return fmt.Errorf("Error setting short_description: %s", err)
 	}
 	if err = d.Set("long_description", offering.LongDescription); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting long_description: %s", err))
+		return fmt.Errorf("Error setting long_description: %s", err)
 	}
 	if err = d.Set("permit_request_ibm_public_publish", offering.PermitRequestIBMPublicPublish); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting permit_request_ibm_public_publish: %s", err))
+		return fmt.Errorf("Error setting permit_request_ibm_public_publish: %s", err)
 	}
 	if err = d.Set("ibm_publish_approved", offering.IBMPublishApproved); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting ibm_publish_approved: %s", err))
+		return fmt.Errorf("Error setting ibm_publish_approved: %s", err)
 	}
 	if err = d.Set("public_publish_approved", offering.PublicPublishApproved); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting public_publish_approved: %s", err))
+		return fmt.Errorf("Error setting public_publish_approved: %s", err)
 	}
 	if err = d.Set("public_original_crn", offering.PublicOriginalCRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting public_original_crn: %s", err))
+		return fmt.Errorf("Error setting public_original_crn: %s", err)
 	}
 	if err = d.Set("publish_public_crn", offering.PublishPublicCRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting publish_public_crn: %s", err))
+		return fmt.Errorf("Error setting publish_public_crn: %s", err)
 	}
 	if err = d.Set("portal_approval_record", offering.PortalApprovalRecord); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting portal_approval_record: %s", err))
+		return fmt.Errorf("Error setting portal_approval_record: %s", err)
 	}
 	if err = d.Set("portal_ui_url", offering.PortalUIURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting portal_ui_url: %s", err))
+		return fmt.Errorf("Error setting portal_ui_url: %s", err)
 	}
 	if err = d.Set("catalog_id", offering.CatalogID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting catalog_id: %s", err))
+		return fmt.Errorf("Error setting catalog_id: %s", err)
 	}
 	if err = d.Set("catalog_name", offering.CatalogName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting catalog_name: %s", err))
+		return fmt.Errorf("Error setting catalog_name: %s", err)
 	}
 	if err = d.Set("disclaimer", offering.Disclaimer); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting disclaimer: %s", err))
+		return fmt.Errorf("Error setting disclaimer: %s", err)
 	}
 	if err = d.Set("hidden", offering.Hidden); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting hidden: %s", err))
+		return fmt.Errorf("Error setting hidden: %s", err)
 	}
 
 	if offering.RepoInfo != nil {
 		repoInfoMap := dataSourceOfferingRepoInfoToMap(*offering.RepoInfo)
 		if err = d.Set("repo_info", []map[string]interface{}{repoInfoMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting repo_info %s", err))
+			return fmt.Errorf("Error setting repo_info %s", err)
 		}
 	}
 

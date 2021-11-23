@@ -7,15 +7,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	en "github.com/IBM/event-notifications-go-admin-sdk/eventnotificationsv1"
 )
 
 func dataSourceIBMEnSubscriptions() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMEnSubscriptionsRead,
+		Read: dataSourceIBMEnSubscriptionsRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance_guid": {
@@ -91,10 +90,10 @@ func dataSourceIBMEnSubscriptions() *schema.Resource {
 	}
 }
 
-func dataSourceIBMEnSubscriptionsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMEnSubscriptionsRead(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.ListSubscriptionsOptions{}
@@ -116,12 +115,12 @@ func dataSourceIBMEnSubscriptionsRead(context context.Context, d *schema.Resourc
 	for {
 		options.SetOffset(offset)
 
-		result, response, err := enClient.ListSubscriptionsWithContext(context, options)
+		result, response, err := enClient.ListSubscriptionsWithContext(context.TODO(), options)
 
 		subscriptionList = result
 
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("ListSubscriptionsWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ListSubscriptionsWithContext failed %s\n%s", err, response)
 		}
 
 		offset = offset + limit
@@ -138,13 +137,13 @@ func dataSourceIBMEnSubscriptionsRead(context context.Context, d *schema.Resourc
 	d.SetId(fmt.Sprintf("subscriptions_%s", d.Get("instance_guid").(string)))
 
 	if err = d.Set("total_count", intValue(subscriptionList.TotalCount)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting total_count: %s", err))
+		return fmt.Errorf("error setting total_count: %s", err)
 	}
 
 	if subscriptionList.Subscriptions != nil {
 		err = d.Set("subscriptions", enFlattenSubscriptionList(subscriptionList.Subscriptions))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("error setting subscriptions %s", err))
+			return fmt.Errorf("error setting subscriptions %s", err)
 		}
 	}
 

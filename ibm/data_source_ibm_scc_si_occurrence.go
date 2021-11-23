@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/scc-go-sdk/findingsv1"
 )
 
 func dataSourceIBMSccSiOccurrence() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccSiOccurrenceRead,
+		Read: dataSourceIBMSccSiOccurrenceRead,
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -268,15 +267,15 @@ func dataSourceIBMSccSiOccurrence() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccSiOccurrenceRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccSiOccurrenceRead(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := d.Get("account_id").(string)
@@ -292,50 +291,50 @@ func dataSourceIBMSccSiOccurrenceRead(context context.Context, d *schema.Resourc
 	getOccurrenceOptions.SetProviderID(d.Get("provider_id").(string))
 	getOccurrenceOptions.SetOccurrenceID(d.Get("occurrence_id").(string))
 
-	apiOccurrence, response, err := findingsClient.GetOccurrenceWithContext(context, getOccurrenceOptions)
+	apiOccurrence, response, err := findingsClient.GetOccurrenceWithContext(context.TODO(), getOccurrenceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetOccurrenceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetOccurrenceWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetOccurrenceWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s/%s", *findingsClient.AccountID, *getOccurrenceOptions.ProviderID, *getOccurrenceOptions.OccurrenceID))
 	if err = d.Set("resource_url", apiOccurrence.ResourceURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_url: %s", err))
+		return fmt.Errorf("Error setting resource_url: %s", err)
 	}
 	if err = d.Set("note_name", apiOccurrence.NoteName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting note_name: %s", err))
+		return fmt.Errorf("Error setting note_name: %s", err)
 	}
 	if err = d.Set("kind", apiOccurrence.Kind); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting kind: %s", err))
+		return fmt.Errorf("Error setting kind: %s", err)
 	}
 	if err = d.Set("remediation", apiOccurrence.Remediation); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting remediation: %s", err))
+		return fmt.Errorf("Error setting remediation: %s", err)
 	}
 	if err = d.Set("create_time", dateTimeToString(apiOccurrence.CreateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting create_time: %s", err))
+		return fmt.Errorf("Error setting create_time: %s", err)
 	}
 	if err = d.Set("update_time", dateTimeToString(apiOccurrence.UpdateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting update_time: %s", err))
+		return fmt.Errorf("Error setting update_time: %s", err)
 	}
 
 	if apiOccurrence.Context != nil {
 		err = d.Set("context", dataSourceAPIOccurrenceFlattenContext(*apiOccurrence.Context))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting context %s", err))
+			return fmt.Errorf("Error setting context %s", err)
 		}
 	}
 
 	if apiOccurrence.Finding != nil {
 		err = d.Set("finding", dataSourceAPIOccurrenceFlattenFinding(*apiOccurrence.Finding))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting finding %s", err))
+			return fmt.Errorf("Error setting finding %s", err)
 		}
 	}
 
 	if apiOccurrence.Kpi != nil {
 		err = d.Set("kpi", dataSourceAPIOccurrenceFlattenKpi(*apiOccurrence.Kpi))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting kpi %s", err))
+			return fmt.Errorf("Error setting kpi %s", err)
 		}
 	}
 

@@ -5,6 +5,7 @@ package ibm
 
 import (
 	"context"
+	"fmt"
 
 	"log"
 
@@ -13,10 +14,9 @@ import (
 	"github.com/IBM-Cloud/power-go-client/errors"
 
 	"github.com/IBM-Cloud/power-go-client/helpers"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 func dataSourceIBMPIDhcp() *schema.Resource {
 
 	return &schema.Resource{
-		ReadContext: dataSourceIBMPIDhcpRead,
+		Read: dataSourceIBMPIDhcpRead,
 		Schema: map[string]*schema.Schema{
 			helpers.PICloudInstanceId: {
 				Type:         schema.TypeString,
@@ -72,20 +72,20 @@ func dataSourceIBMPIDhcp() *schema.Resource {
 	}
 }
 
-func dataSourceIBMPIDhcpRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMPIDhcpRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := d.Get(helpers.PICloudInstanceId).(string)
 	dhcpID := d.Get(PIDhcpId).(string)
 
 	client := st.NewIBMPIDhcpClient(sess, cloudInstanceID)
-	dhcpServer, err := client.GetWithContext(ctx, dhcpID, cloudInstanceID)
+	dhcpServer, err := client.GetWithContext(context.TODO(), dhcpID, cloudInstanceID)
 	if err != nil {
 		log.Printf("[DEBUG] get DHCP failed %v", err)
-		return diag.Errorf(errors.GetDhcpOperationFailed, dhcpID, err)
+		return fmt.Errorf(errors.GetDhcpOperationFailed, dhcpID, err)
 	}
 
 	d.SetId(*dhcpServer.ID)

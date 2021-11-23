@@ -9,9 +9,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/vpc-go-sdk/vpcv1"
@@ -36,11 +35,11 @@ const (
 
 func resourceIbmIsDedicatedHost() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmIsDedicatedHostCreate,
-		ReadContext:   resourceIbmIsDedicatedHostRead,
-		UpdateContext: resourceIbmIsDedicatedHostUpdate,
-		DeleteContext: resourceIbmIsDedicatedHostDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmIsDedicatedHostCreate,
+		Read:     resourceIbmIsDedicatedHostRead,
+		Update:   resourceIbmIsDedicatedHostUpdate,
+		Delete:   resourceIbmIsDedicatedHostDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"instance_placement_enabled": {
@@ -359,10 +358,10 @@ func resourceIbmIsDedicatedHostValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIbmIsDedicatedHostCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostCreate(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	createDedicatedHostOptions := &vpcv1.CreateDedicatedHostOptions{}
 	dedicatedHostPrototype := vpcv1.DedicatedHostPrototype{}
@@ -403,54 +402,54 @@ func resourceIbmIsDedicatedHostCreate(context context.Context, d *schema.Resourc
 
 	createDedicatedHostOptions.SetDedicatedHostPrototype(&dedicatedHostPrototype)
 
-	dedicatedHost, response, err := vpcClient.CreateDedicatedHostWithContext(context, createDedicatedHostOptions)
+	dedicatedHost, response, err := vpcClient.CreateDedicatedHostWithContext(context.TODO(), createDedicatedHostOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateDedicatedHostWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*dedicatedHost.ID)
 
 	_, err = isWaitForDedicatedHostAvailable(vpcClient, d.Id(), d.Timeout(schema.TimeoutCreate), d)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
-	return resourceIbmIsDedicatedHostRead(context, d, meta)
+	return resourceIbmIsDedicatedHostRead(d, meta)
 }
 
-func resourceIbmIsDedicatedHostRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getDedicatedHostOptions := &vpcv1.GetDedicatedHostOptions{}
 
 	getDedicatedHostOptions.SetID(d.Id())
 
-	dedicatedHost, response, err := vpcClient.GetDedicatedHostWithContext(context, getDedicatedHostOptions)
+	dedicatedHost, response, err := vpcClient.GetDedicatedHostWithContext(context.TODO(), getDedicatedHostOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetDedicatedHostWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	if err = d.Set("available_memory", intValue(dedicatedHost.AvailableMemory)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting available_memory: %s", err))
+		return fmt.Errorf("Error setting available_memory: %s", err)
 	}
 	availableVcpuMap := resourceIbmIsDedicatedHostVCPUToMap(*dedicatedHost.AvailableVcpu)
 	if err = d.Set("available_vcpu", []map[string]interface{}{availableVcpuMap}); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting available_vcpu: %s", err))
+		return fmt.Errorf("Error setting available_vcpu: %s", err)
 	}
 	if err = d.Set("created_at", dedicatedHost.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("crn", dedicatedHost.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	disks := []map[string]interface{}{}
 	for _, disksItem := range dedicatedHost.Disks {
@@ -458,15 +457,15 @@ func resourceIbmIsDedicatedHostRead(context context.Context, d *schema.ResourceD
 		disks = append(disks, disksItemMap)
 	}
 	if err = d.Set("disks", disks); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting disks: %s", err))
+		return fmt.Errorf("Error setting disks: %s", err)
 	}
 	d.Set("host_group", *dedicatedHost.Group.ID)
 
 	if err = d.Set("href", dedicatedHost.Href); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+		return fmt.Errorf("Error setting href: %s", err)
 	}
 	if err = d.Set("instance_placement_enabled", dedicatedHost.InstancePlacementEnabled); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting instance_placement_enabled: %s", err))
+		return fmt.Errorf("Error setting instance_placement_enabled: %s", err)
 	}
 	instances := []map[string]interface{}{}
 	for _, instancesItem := range dedicatedHost.Instances {
@@ -474,35 +473,35 @@ func resourceIbmIsDedicatedHostRead(context context.Context, d *schema.ResourceD
 		instances = append(instances, instancesItemMap)
 	}
 	if err = d.Set("instances", instances); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting instances: %s", err))
+		return fmt.Errorf("Error setting instances: %s", err)
 	}
 	if err = d.Set("lifecycle_state", dedicatedHost.LifecycleState); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting lifecycle_state: %s", err))
+		return fmt.Errorf("Error setting lifecycle_state: %s", err)
 	}
 	if err = d.Set("memory", intValue(dedicatedHost.Memory)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting memory: %s", err))
+		return fmt.Errorf("Error setting memory: %s", err)
 	}
 	if err = d.Set("name", dedicatedHost.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 
 	if err = d.Set("profile", *dedicatedHost.Profile.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting profile: %s", err))
+		return fmt.Errorf("Error setting profile: %s", err)
 	}
 	if err = d.Set("provisionable", dedicatedHost.Provisionable); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting provisionable: %s", err))
+		return fmt.Errorf("Error setting provisionable: %s", err)
 	}
 	if err = d.Set("resource_group", *dedicatedHost.ResourceGroup.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_group: %s", err))
+		return fmt.Errorf("Error setting resource_group: %s", err)
 	}
 	if err = d.Set("resource_type", dedicatedHost.ResourceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_type: %s", err))
+		return fmt.Errorf("Error setting resource_type: %s", err)
 	}
 	if err = d.Set("socket_count", intValue(dedicatedHost.SocketCount)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting socket_count: %s", err))
+		return fmt.Errorf("Error setting socket_count: %s", err)
 	}
 	if err = d.Set("state", dedicatedHost.State); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting state: %s", err))
+		return fmt.Errorf("Error setting state: %s", err)
 	}
 	supportedInstanceProfiles := []map[string]interface{}{}
 	for _, supportedInstanceProfilesItem := range dedicatedHost.SupportedInstanceProfiles {
@@ -510,15 +509,15 @@ func resourceIbmIsDedicatedHostRead(context context.Context, d *schema.ResourceD
 		supportedInstanceProfiles = append(supportedInstanceProfiles, supportedInstanceProfilesItemMap)
 	}
 	if err = d.Set("supported_instance_profiles", supportedInstanceProfiles); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting supported_instance_profiles: %s", err))
+		return fmt.Errorf("Error setting supported_instance_profiles: %s", err)
 	}
 	vcpuMap := resourceIbmIsDedicatedHostVCPUToMap(*dedicatedHost.Vcpu)
 	if err = d.Set("vcpu", []map[string]interface{}{vcpuMap}); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting vcpu: %s", err))
+		return fmt.Errorf("Error setting vcpu: %s", err)
 	}
 
 	if err = d.Set("zone", *dedicatedHost.Zone.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting zone: %s", err))
+		return fmt.Errorf("Error setting zone: %s", err)
 	}
 
 	return nil
@@ -565,10 +564,10 @@ func resourceIbmIsDedicatedHostInstanceProfileReferenceToMap(instanceProfileRefe
 	return instanceProfileReferenceMap
 }
 
-func resourceIbmIsDedicatedHostUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostUpdate(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateDedicatedHostOptions := &vpcv1.UpdateDedicatedHostOptions{}
@@ -604,34 +603,34 @@ func resourceIbmIsDedicatedHostUpdate(context context.Context, d *schema.Resourc
 
 	if hasChange {
 		updateDedicatedHostOptions.SetDedicatedHostPatch(dedicatedHostPrototypemap)
-		_, response, err := vpcClient.UpdateDedicatedHostWithContext(context, updateDedicatedHostOptions)
+		_, response, err := vpcClient.UpdateDedicatedHostWithContext(context.TODO(), updateDedicatedHostOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateDedicatedHostWithContext fails %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
-	return resourceIbmIsDedicatedHostRead(context, d, meta)
+	return resourceIbmIsDedicatedHostRead(d, meta)
 }
 
-func resourceIbmIsDedicatedHostDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostDelete(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getDedicatedHostOptions := &vpcv1.GetDedicatedHostOptions{}
 
 	getDedicatedHostOptions.SetID(d.Id())
 
-	dedicatedHost, response, err := vpcClient.GetDedicatedHostWithContext(context, getDedicatedHostOptions)
+	dedicatedHost, response, err := vpcClient.GetDedicatedHostWithContext(context.TODO(), getDedicatedHostOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetDedicatedHostWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 	if dedicatedHost != nil && dedicatedHost.LifecycleState != nil && *dedicatedHost.LifecycleState != isDedicatedHostSuspended && *dedicatedHost.LifecycleState != isDedicatedHostFailed {
 
@@ -640,24 +639,24 @@ func resourceIbmIsDedicatedHostDelete(context context.Context, d *schema.Resourc
 		dedicatedHostPrototypeMap["instance_placement_enabled"] = core.BoolPtr(false)
 		updateDedicatedHostOptions.SetID(d.Id())
 		updateDedicatedHostOptions.SetDedicatedHostPatch(dedicatedHostPrototypeMap)
-		_, updateresponse, err := vpcClient.UpdateDedicatedHostWithContext(context, updateDedicatedHostOptions)
+		_, updateresponse, err := vpcClient.UpdateDedicatedHostWithContext(context.TODO(), updateDedicatedHostOptions)
 		if err != nil {
 			log.Printf("[DEBUG] Failed disabling instance placement %s\n%s", err, updateresponse)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 	deleteDedicatedHostOptions := &vpcv1.DeleteDedicatedHostOptions{}
 
 	deleteDedicatedHostOptions.SetID(d.Id())
 
-	response, err = vpcClient.DeleteDedicatedHostWithContext(context, deleteDedicatedHostOptions)
+	response, err = vpcClient.DeleteDedicatedHostWithContext(context.TODO(), deleteDedicatedHostOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteDedicatedHostWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 	_, err = isWaitForDedicatedHostDelete(vpcClient, d, d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId("")

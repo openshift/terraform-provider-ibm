@@ -7,15 +7,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	en "github.com/IBM/event-notifications-go-admin-sdk/eventnotificationsv1"
 )
 
 func dataSourceIBMEnTopics() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMEnTopicsRead,
+		Read: dataSourceIBMEnTopicsRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance_guid": {
@@ -79,10 +78,10 @@ func dataSourceIBMEnTopics() *schema.Resource {
 	}
 }
 
-func dataSourceIBMEnTopicsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMEnTopicsRead(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.ListTopicsOptions{}
@@ -104,12 +103,12 @@ func dataSourceIBMEnTopicsRead(context context.Context, d *schema.ResourceData, 
 	for {
 		options.SetOffset(offset)
 
-		result, response, err := enClient.ListTopicsWithContext(context, options)
+		result, response, err := enClient.ListTopicsWithContext(context.TODO(), options)
 
 		topicList = result
 
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("ListTopicsWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ListTopicsWithContext failed %s\n%s", err, response)
 		}
 		offset = offset + limit
 
@@ -125,13 +124,13 @@ func dataSourceIBMEnTopicsRead(context context.Context, d *schema.ResourceData, 
 	d.SetId(fmt.Sprintf("topics_%s", d.Get("instance_guid").(string)))
 
 	if err = d.Set("total_count", intValue(topicList.TotalCount)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting total_count: %s", err))
+		return fmt.Errorf("error setting total_count: %s", err)
 	}
 
 	if topicList.Topics != nil {
 		err = d.Set("topics", enTopicListFlatten(topicList.Topics))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("error setting topics %s", err))
+			return fmt.Errorf("error setting topics %s", err)
 		}
 	}
 

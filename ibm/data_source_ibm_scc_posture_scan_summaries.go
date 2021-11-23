@@ -12,8 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/scc-go-sdk/posturemanagementv1"
@@ -21,7 +20,7 @@ import (
 
 func dataSourceIBMSccPostureScanSummaries() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccPostureScanSummariesRead,
+		Read: dataSourceIBMSccPostureScanSummariesRead,
 
 		Schema: map[string]*schema.Schema{
 			"profile_id": &schema.Schema{
@@ -358,10 +357,10 @@ func dataSourceIBMSccPostureScanSummaries() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccPostureScanSummariesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccPostureScanSummariesRead(d *schema.ResourceData, meta interface{}) error {
 	postureManagementClient, err := meta.(ClientSession).PostureManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	scanSummariesOptions := &posturemanagementv1.ScanSummariesOptions{}
@@ -384,11 +383,11 @@ func dataSourceIBMSccPostureScanSummariesRead(context context.Context, d *schema
 		scanSummariesOptions.Offset = &offset
 
 		scanSummariesOptions.Limit = core.Int64Ptr(int64(100))
-		result, response, err := postureManagementClient.ScanSummariesWithContext(context, scanSummariesOptions)
+		result, response, err := postureManagementClient.ScanSummariesWithContext(context.TODO(), scanSummariesOptions)
 		summariesList = result
 		if err != nil {
 			log.Printf("[DEBUG] ScanSummariesWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("ScanSummariesWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ScanSummariesWithContext failed %s\n%s", err, response)
 		}
 		offset = dataSourceSummariesListGetNext(result.Next)
 		if suppliedFilter {
@@ -409,7 +408,7 @@ func dataSourceIBMSccPostureScanSummariesRead(context context.Context, d *schema
 
 	if suppliedFilter {
 		if len(summariesList.Summaries) == 0 {
-			return diag.FromErr(fmt.Errorf("no Summaries found with scanID %s", scanID))
+			return fmt.Errorf("no Summaries found with scanID %s", scanID)
 		}
 		d.SetId(scanID)
 	} else {
@@ -419,28 +418,28 @@ func dataSourceIBMSccPostureScanSummariesRead(context context.Context, d *schema
 	if summariesList.First != nil {
 		err = d.Set("first", dataSourceSummariesListFlattenFirst(*summariesList.First))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting first %s", err))
+			return fmt.Errorf("Error setting first %s", err)
 		}
 	}
 
 	if summariesList.Last != nil {
 		err = d.Set("last", dataSourceSummariesListFlattenLast(*summariesList.Last))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting last %s", err))
+			return fmt.Errorf("Error setting last %s", err)
 		}
 	}
 
 	if summariesList.Previous != nil {
 		err = d.Set("previous", dataSourceSummariesListFlattenPrevious(*summariesList.Previous))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting previous %s", err))
+			return fmt.Errorf("Error setting previous %s", err)
 		}
 	}
 
 	if summariesList.Summaries != nil {
 		err = d.Set("summaries", dataSourceSummariesListFlattenSummaries(summariesList.Summaries))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting summaries %s", err))
+			return fmt.Errorf("Error setting summaries %s", err)
 		}
 	}
 

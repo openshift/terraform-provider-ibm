@@ -4,19 +4,17 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
 
 func dataSourceIbmIamApiKey() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIamApiKeyRead,
+		Read: dataSourceIbmIamApiKeyRead,
 
 		Schema: map[string]*schema.Schema{
 			"apikey_id": &schema.Schema{
@@ -78,10 +76,10 @@ func dataSourceIbmIamApiKey() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIamApiKeyRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIamApiKeyRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getApiKeyOptions := &iamidentityv1.GetAPIKeyOptions{}
@@ -91,40 +89,40 @@ func dataSourceIbmIamApiKeyRead(context context.Context, d *schema.ResourceData,
 	apiKey, response, err := iamIdentityClient.GetAPIKey(getApiKeyOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetApiKey failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*apiKey.ID)
 
 	if err = d.Set("entity_tag", apiKey.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("crn", apiKey.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("locked", apiKey.Locked); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting locked: %s", err))
+		return fmt.Errorf("Error setting locked: %s", err)
 	}
 	if err = d.Set("created_at", apiKey.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", apiKey.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("modified_at", apiKey.ModifiedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 	if err = d.Set("name", apiKey.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("description", apiKey.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("iam_id", apiKey.IamID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting iam_id: %s", err))
+		return fmt.Errorf("Error setting iam_id: %s", err)
 	}
 	if err = d.Set("account_id", apiKey.AccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting account_id: %s", err))
+		return fmt.Errorf("Error setting account_id: %s", err)
 	}
 
 	return nil

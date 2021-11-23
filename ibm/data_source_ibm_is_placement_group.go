@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsPlacementGroup() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsPlacementGroupRead,
+		Read: dataSourceIbmIsPlacementGroupRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -96,10 +95,10 @@ func dataSourceIbmIsPlacementGroup() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsPlacementGroupRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsPlacementGroupRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	pgname := d.Get("name").(string)
 	listPlacementGroupsOptions := &vpcv1.ListPlacementGroupsOptions{}
@@ -109,10 +108,10 @@ func dataSourceIbmIsPlacementGroupRead(context context.Context, d *schema.Resour
 		if start != "" {
 			listPlacementGroupsOptions.Start = &start
 		}
-		placementGroupCollection, response, err := vpcClient.ListPlacementGroupsWithContext(context, listPlacementGroupsOptions)
+		placementGroupCollection, response, err := vpcClient.ListPlacementGroupsWithContext(context.TODO(), listPlacementGroupsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListPlacementGroupsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		start = GetNext(placementGroupCollection.Next)
 		allrecs = append(allrecs, placementGroupCollection.PlacementGroups...)
@@ -125,32 +124,32 @@ func dataSourceIbmIsPlacementGroupRead(context context.Context, d *schema.Resour
 
 			d.SetId(*placementGroup.ID)
 			if err = d.Set("created_at", placementGroup.CreatedAt.String()); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+				return fmt.Errorf("Error setting created_at: %s", err)
 			}
 			if err = d.Set("crn", placementGroup.CRN); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+				return fmt.Errorf("Error setting crn: %s", err)
 			}
 			if err = d.Set("href", placementGroup.Href); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+				return fmt.Errorf("Error setting href: %s", err)
 			}
 			if err = d.Set("lifecycle_state", placementGroup.LifecycleState); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting lifecycle_state: %s", err))
+				return fmt.Errorf("Error setting lifecycle_state: %s", err)
 			}
 			if err = d.Set("name", placementGroup.Name); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+				return fmt.Errorf("Error setting name: %s", err)
 			}
 
 			if placementGroup.ResourceGroup != nil {
 				err = d.Set("resource_group", dataSourcePlacementGroupFlattenResourceGroup(*placementGroup.ResourceGroup))
 				if err != nil {
-					return diag.FromErr(fmt.Errorf("Error setting resource_group %s", err))
+					return fmt.Errorf("Error setting resource_group %s", err)
 				}
 			}
 			if err = d.Set("resource_type", placementGroup.ResourceType); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting resource_type: %s", err))
+				return fmt.Errorf("Error setting resource_type: %s", err)
 			}
 			if err = d.Set("strategy", placementGroup.Strategy); err != nil {
-				return diag.FromErr(fmt.Errorf("Error setting strategy: %s", err))
+				return fmt.Errorf("Error setting strategy: %s", err)
 			}
 			tags, err := GetGlobalTagsUsingCRN(meta, *placementGroup.CRN, "", isUserTagType)
 			if err != nil {
@@ -169,7 +168,7 @@ func dataSourceIbmIsPlacementGroupRead(context context.Context, d *schema.Resour
 			return nil
 		}
 	}
-	return diag.FromErr(fmt.Errorf("No placement group found with name %s", pgname))
+	return fmt.Errorf("No placement group found with name %s", pgname)
 }
 
 func dataSourcePlacementGroupFlattenResourceGroup(result vpcv1.ResourceGroupReference) (finalList []map[string]interface{}) {

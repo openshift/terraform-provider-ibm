@@ -9,20 +9,19 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
 	"github.com/IBM/go-sdk-core/v5/core"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func resourceIBMAppIDCloudDirectoryUser() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Manage AppID Cloud Directory user",
-		CreateContext: resourceIBMAppIDCloudDirectoryUserCreate,
-		ReadContext:   resourceIBMAppIDCloudDirectoryUserRead,
-		DeleteContext: resourceIBMAppIDCloudDirectoryUserDelete,
-		UpdateContext: resourceIBMAppIDCloudDirectoryUserUpdate,
+		Description: "Manage AppID Cloud Directory user",
+		Create:      resourceIBMAppIDCloudDirectoryUserCreate,
+		Read:        resourceIBMAppIDCloudDirectoryUserRead,
+		Delete:      resourceIBMAppIDCloudDirectoryUserDelete,
+		Update:      resourceIBMAppIDCloudDirectoryUserUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -125,24 +124,24 @@ func resourceIBMAppIDCloudDirectoryUser() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDCloudDirectoryUserRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryUserRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
 	idParts := strings.Split(id, "/")
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/userID", id)
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/userID", id)
 	}
 
 	tenantID := idParts[0]
 	userID := idParts[1]
 
-	user, resp, err := appIDClient.GetCloudDirectoryUserWithContext(ctx, &appid.GetCloudDirectoryUserOptions{
+	user, resp, err := appIDClient.GetCloudDirectoryUserWithContext(context.TODO(), &appid.GetCloudDirectoryUserOptions{
 		TenantID: &tenantID,
 		UserID:   &userID,
 	})
@@ -154,7 +153,7 @@ func resourceIBMAppIDCloudDirectoryUserRead(ctx context.Context, d *schema.Resou
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID Cloud Directory user: %s", err)
+		return fmt.Errorf("Error getting AppID Cloud Directory user: %s", err)
 	}
 
 	d.Set("tenant_id", tenantID)
@@ -182,23 +181,23 @@ func resourceIBMAppIDCloudDirectoryUserRead(ctx context.Context, d *schema.Resou
 
 	if user.Emails != nil {
 		if err := d.Set("email", flattenAppIDUserEmails(user.Emails)); err != nil {
-			return diag.Errorf("Error setting AppID user emails: %s", err)
+			return fmt.Errorf("Error setting AppID user emails: %s", err)
 		}
 	}
 
 	if user.Meta != nil {
 		if err := d.Set("meta", flattenAppIDUserMetadata(user.Meta)); err != nil {
-			return diag.Errorf("Error setting AppID user metadata: %s", err)
+			return fmt.Errorf("Error setting AppID user metadata: %s", err)
 		}
 	}
 
-	attr, resp, err := appIDClient.CloudDirectoryGetUserinfoWithContext(ctx, &appid.CloudDirectoryGetUserinfoOptions{
+	attr, resp, err := appIDClient.CloudDirectoryGetUserinfoWithContext(context.TODO(), &appid.CloudDirectoryGetUserinfoOptions{
 		TenantID: &tenantID,
 		UserID:   &userID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID user attributes: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID user attributes: %s\n%s", err, resp)
 	}
 
 	if attr.Sub != nil {
@@ -208,11 +207,11 @@ func resourceIBMAppIDCloudDirectoryUserRead(ctx context.Context, d *schema.Resou
 	return nil
 }
 
-func resourceIBMAppIDCloudDirectoryUserCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryUserCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -239,44 +238,44 @@ func resourceIBMAppIDCloudDirectoryUserCreate(ctx context.Context, d *schema.Res
 		input.LockedUntil = core.Int64Ptr(int64(lockedUntil.(int)))
 	}
 
-	user, resp, err := appIDClient.StartSignUpWithContext(ctx, input)
+	user, resp, err := appIDClient.StartSignUpWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error creating AppID Cloud Directory user: %s\n%s", err, resp)
+		return fmt.Errorf("Error creating AppID Cloud Directory user: %s\n%s", err, resp)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, *user.ID))
-	return resourceIBMAppIDCloudDirectoryUserRead(ctx, d, meta)
+	return resourceIBMAppIDCloudDirectoryUserRead(d, meta)
 }
 
-func resourceIBMAppIDCloudDirectoryUserDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryUserDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	userID := d.Get("user_id").(string)
 
-	resp, err := appIDClient.DeleteCloudDirectoryUserWithContext(ctx, &appid.DeleteCloudDirectoryUserOptions{
+	resp, err := appIDClient.DeleteCloudDirectoryUserWithContext(context.TODO(), &appid.DeleteCloudDirectoryUserOptions{
 		TenantID: &tenantID,
 		UserID:   &userID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error deleting AppID Cloud Directory user: %s\n%s", err, resp)
+		return fmt.Errorf("Error deleting AppID Cloud Directory user: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
 	return nil
 }
 
-func resourceIBMAppIDCloudDirectoryUserUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryUserUpdate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -303,27 +302,27 @@ func resourceIBMAppIDCloudDirectoryUserUpdate(ctx context.Context, d *schema.Res
 		input.LockedUntil = core.Int64Ptr(int64(lockedUntil.(int)))
 	}
 
-	_, resp, err := appIDClient.UpdateCloudDirectoryUserWithContext(ctx, input)
+	_, resp, err := appIDClient.UpdateCloudDirectoryUserWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID Cloud Directory user: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID Cloud Directory user: %s\n%s", err, resp)
 	}
 
 	if d.HasChanges("password") {
 		password = d.Get("password").(string)
 
-		_, resp, err = appIDClient.ChangePasswordWithContext(ctx, &appid.ChangePasswordOptions{
+		_, resp, err = appIDClient.ChangePasswordWithContext(context.TODO(), &appid.ChangePasswordOptions{
 			TenantID:    &tenantID,
 			UUID:        &userID,
 			NewPassword: &password,
 		})
 
 		if err != nil {
-			return diag.Errorf("Error updating AppID Cloud Directory user: %s\n%s", err, resp)
+			return fmt.Errorf("Error updating AppID Cloud Directory user: %s\n%s", err, resp)
 		}
 	}
 
-	return resourceIBMAppIDCloudDirectoryUserRead(ctx, d, meta)
+	return resourceIBMAppIDCloudDirectoryUserRead(d, meta)
 }
 
 func expandAppIDUserEmails(e []interface{}) []appid.CreateNewUserEmailsItem {

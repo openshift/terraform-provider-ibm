@@ -7,7 +7,7 @@ import (
 
 	kp "github.com/IBM/keyprotect-go-client"
 	rc "github.com/IBM/platform-services-go-sdk/resourcecontrollerv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMKmskeyAlias() *schema.Resource {

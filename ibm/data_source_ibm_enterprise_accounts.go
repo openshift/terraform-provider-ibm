@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/enterprisemanagementv1"
 )
 
 func dataSourceIbmEnterpriseAccounts() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmEnterpriseAccountsRead,
+		Read: dataSourceIbmEnterpriseAccountsRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -124,10 +123,10 @@ func dataSourceIbmEnterpriseAccounts() *schema.Resource {
 	}
 }
 
-func dataSourceIbmEnterpriseAccountsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmEnterpriseAccountsRead(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	next_docid := ""
 	var allRecs []enterprisemanagementv1.Account
@@ -136,15 +135,15 @@ func dataSourceIbmEnterpriseAccountsRead(context context.Context, d *schema.Reso
 		if next_docid != "" {
 			listAccountsOptions.NextDocid = &next_docid
 		}
-		listAccountsResponse, response, err := enterpriseManagementClient.ListAccountsWithContext(context, listAccountsOptions)
+		listAccountsResponse, response, err := enterpriseManagementClient.ListAccountsWithContext(context.TODO(), listAccountsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListAccountsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		next_docid, err = getEnterpriseNext(listAccountsResponse.NextURL)
 		if err != nil {
 			log.Printf("[DEBUG] ListAccountsWithContext failed. Error occurred while parsing NextURL: %s", err)
-			return diag.FromErr(err)
+			return err
 		}
 		allRecs = append(allRecs, listAccountsResponse.Resources...)
 		if next_docid == "" {
@@ -171,7 +170,7 @@ func dataSourceIbmEnterpriseAccountsRead(context context.Context, d *schema.Reso
 	allRecs = matchResources
 
 	if len(allRecs) == 0 {
-		return diag.FromErr(fmt.Errorf("no Resources found with name %s\nIf not specified, please specify more filters", name))
+		return fmt.Errorf("no Resources found with name %s\nIf not specified, please specify more filters", name)
 	}
 
 	if suppliedFilter {
@@ -183,7 +182,7 @@ func dataSourceIbmEnterpriseAccountsRead(context context.Context, d *schema.Reso
 	if allRecs != nil {
 		err = d.Set("accounts", dataSourceListEnterpriseAccountsResponseFlattenResources(allRecs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resources %s", err))
+			return fmt.Errorf("Error setting resources %s", err)
 		}
 	}
 

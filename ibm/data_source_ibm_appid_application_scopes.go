@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDApplicationScopes() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDApplicationScopesRead,
+		Read: dataSourceIBMAppIDApplicationScopesRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The service `tenantId`",
@@ -34,27 +33,27 @@ func dataSourceIBMAppIDApplicationScopes() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDApplicationScopesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDApplicationScopesRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	clientID := d.Get("client_id").(string)
 
-	scopes, resp, err := appIDClient.GetApplicationScopesWithContext(ctx, &appid.GetApplicationScopesOptions{
+	scopes, resp, err := appIDClient.GetApplicationScopesWithContext(context.TODO(), &appid.GetApplicationScopesOptions{
 		TenantID: &tenantID,
 		ClientID: &clientID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID application scopes: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID application scopes: %s\n%s", err, resp)
 	}
 
 	if err := d.Set("scopes", scopes.Scopes); err != nil {
-		return diag.Errorf("Error setting AppID application scopes: %s", err)
+		return fmt.Errorf("Error setting AppID application scopes: %s", err)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, clientID))

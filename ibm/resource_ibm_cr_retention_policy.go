@@ -8,19 +8,18 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/container-registry-go-sdk/containerregistryv1"
 )
 
 func resourceIBMCrRetentionPolicy() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMCrRetentionPolicyCreate,
-		ReadContext:   resourceIBMCrRetentionPolicyRead,
-		UpdateContext: resourceIBMCrRetentionPolicyUpdate,
-		DeleteContext: resourceIBMCrRetentionPolicyDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMCrRetentionPolicyCreate,
+		Read:     resourceIBMCrRetentionPolicyRead,
+		Update:   resourceIBMCrRetentionPolicyUpdate,
+		Delete:   resourceIBMCrRetentionPolicyDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"namespace": &schema.Schema{
@@ -43,10 +42,10 @@ func resourceIBMCrRetentionPolicy() *schema.Resource {
 	}
 }
 
-func resourceIBMCrRetentionPolicyCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCrRetentionPolicyCreate(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	setRetentionPolicyOptions := &containerregistryv1.SetRetentionPolicyOptions{}
@@ -57,35 +56,35 @@ func resourceIBMCrRetentionPolicyCreate(context context.Context, d *schema.Resou
 		setRetentionPolicyOptions.SetRetainUntagged(d.Get("retain_untagged").(bool))
 	}
 
-	response, err := containerRegistryClient.SetRetentionPolicyWithContext(context, setRetentionPolicyOptions)
+	response, err := containerRegistryClient.SetRetentionPolicyWithContext(context.TODO(), setRetentionPolicyOptions)
 	if err != nil {
 		log.Printf("[DEBUG] SetRetentionPolicyWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(d.Get("namespace").(string))
 
-	return resourceIBMCrRetentionPolicyRead(context, d, meta)
+	return resourceIBMCrRetentionPolicyRead(d, meta)
 }
 
-func resourceIBMCrRetentionPolicyRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCrRetentionPolicyRead(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getRetentionPolicyOptions := &containerregistryv1.GetRetentionPolicyOptions{}
 
 	getRetentionPolicyOptions.SetNamespace(d.Id())
 
-	retentionPolicy, response, err := containerRegistryClient.GetRetentionPolicyWithContext(context, getRetentionPolicyOptions)
+	retentionPolicy, response, err := containerRegistryClient.GetRetentionPolicyWithContext(context.TODO(), getRetentionPolicyOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetRetentionPolicyWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	// A retention policy "does not exist" if `imagesPerRepo` is -1 `retainUntagged` is true
@@ -95,22 +94,22 @@ func resourceIBMCrRetentionPolicyRead(context context.Context, d *schema.Resourc
 	}
 
 	if err = d.Set("namespace", retentionPolicy.Namespace); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting namespace: %s", err))
+		return fmt.Errorf("Error setting namespace: %s", err)
 	}
 	if err = d.Set("images_per_repo", intValue(retentionPolicy.ImagesPerRepo)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting images_per_repo: %s", err))
+		return fmt.Errorf("Error setting images_per_repo: %s", err)
 	}
 	if err = d.Set("retain_untagged", retentionPolicy.RetainUntagged); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting retain_untagged: %s", err))
+		return fmt.Errorf("Error setting retain_untagged: %s", err)
 	}
 
 	return nil
 }
 
-func resourceIBMCrRetentionPolicyUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCrRetentionPolicyUpdate(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	setRetentionPolicyOptions := &containerregistryv1.SetRetentionPolicyOptions{}
@@ -133,20 +132,20 @@ func resourceIBMCrRetentionPolicyUpdate(context context.Context, d *schema.Resou
 	}
 
 	if hasChange {
-		response, err := containerRegistryClient.SetRetentionPolicyWithContext(context, setRetentionPolicyOptions)
+		response, err := containerRegistryClient.SetRetentionPolicyWithContext(context.TODO(), setRetentionPolicyOptions)
 		if err != nil {
 			log.Printf("[DEBUG] SetRetentionPolicyWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
-	return resourceIBMCrRetentionPolicyRead(context, d, meta)
+	return resourceIBMCrRetentionPolicyRead(d, meta)
 }
 
-func resourceIBMCrRetentionPolicyDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCrRetentionPolicyDelete(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	setRetentionPolicyOptions := &containerregistryv1.SetRetentionPolicyOptions{}
@@ -155,10 +154,10 @@ func resourceIBMCrRetentionPolicyDelete(context context.Context, d *schema.Resou
 	setRetentionPolicyOptions.SetImagesPerRepo(-1)
 	setRetentionPolicyOptions.SetRetainUntagged(true)
 
-	response, err := containerRegistryClient.SetRetentionPolicyWithContext(context, setRetentionPolicyOptions)
+	response, err := containerRegistryClient.SetRetentionPolicyWithContext(context.TODO(), setRetentionPolicyOptions)
 	if err != nil {
 		log.Printf("[DEBUG] SetRetentionPolicyWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId("")

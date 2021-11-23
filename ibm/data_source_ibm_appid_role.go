@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDRole() *schema.Resource {
 	return &schema.Resource{
 		Description: "A role is a collection of `scopes` that allow varying permissions to different types of app users",
-		ReadContext: dataSourceIBMAppIDRoleRead,
+		Read:        dataSourceIBMAppIDRoleRead,
 		Schema: map[string]*schema.Schema{
 			"role_id": {
 				Description: "Role ID",
@@ -57,23 +56,23 @@ func dataSourceIBMAppIDRole() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDRoleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDRoleRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	id := d.Get("role_id").(string)
 
-	role, resp, err := appIDClient.GetRoleWithContext(ctx, &appid.GetRoleOptions{
+	role, resp, err := appIDClient.GetRoleWithContext(context.TODO(), &appid.GetRoleOptions{
 		RoleID:   &id,
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID role: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID role: %s\n%s", err, resp)
 	}
 
 	d.Set("name", *role.Name)
@@ -83,7 +82,7 @@ func dataSourceIBMAppIDRoleRead(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	if err := d.Set("access", flattenAppIDRoleAccess(role.Access)); err != nil {
-		return diag.Errorf("Error setting AppID role access: %s", err)
+		return fmt.Errorf("Error setting AppID role access: %s", err)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, *role.ID))

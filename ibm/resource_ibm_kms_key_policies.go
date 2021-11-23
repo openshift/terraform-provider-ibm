@@ -14,17 +14,16 @@ import (
 
 	kp "github.com/IBM/keyprotect-go-client"
 	rc "github.com/IBM/platform-services-go-sdk/resourcecontrollerv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMKmskeyPolicies() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMKmsKeyPolicyCreate,
-		ReadContext:   resourceIBMKmsKeyPolicyRead,
-		UpdateContext: resourceIBMKmsKeyPolicyUpdate,
-		DeleteContext: resourceIBMKmsKeyPolicyDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMKmsKeyPolicyCreate,
+		Read:     resourceIBMKmsKeyPolicyRead,
+		Update:   resourceIBMKmsKeyPolicyUpdate,
+		Delete:   resourceIBMKmsKeyPolicyDelete,
+		Importer: &schema.ResourceImporter{},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
 			Update: schema.DefaultTimeout(10 * time.Minute),
@@ -162,10 +161,10 @@ func resourceIBMKmskeyPolicies() *schema.Resource {
 		},
 	}
 }
-func resourceIBMKmsKeyPolicyCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMKmsKeyPolicyCreate(d *schema.ResourceData, meta interface{}) error {
 	kpAPI, err := meta.(ClientSession).keyManagementAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	instanceID := d.Get("instance_id").(string)
 	CrnInstanceID := strings.Split(instanceID, ":")
@@ -177,40 +176,40 @@ func resourceIBMKmsKeyPolicyCreate(context context.Context, d *schema.ResourceDa
 
 	rsConClient, err := meta.(ClientSession).ResourceControllerV2API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	resourceInstanceGet := rc.GetResourceInstanceOptions{
 		ID: &instanceID,
 	}
 	instanceData, resp, err := rsConClient.GetResourceInstance(&resourceInstanceGet)
 	if err != nil || instanceData == nil {
-		return diag.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
+		return fmt.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
 	}
 	extensions := instanceData.Extensions
 	URL, err := KmsEndpointURL(kpAPI, endpointType, extensions)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	kpAPI.URL = URL
 
 	kpAPI.Config.InstanceID = instanceID
 
-	key, err := kpAPI.GetKey(context, key_id)
+	key, err := kpAPI.GetKey(context.TODO(), key_id)
 	if err != nil {
-		return diag.Errorf("Get Key failed with error while creating policies: %s", err)
+		return fmt.Errorf("Get Key failed with error while creating policies: %s", err)
 	}
-	err = resourceHandlePolicies(context, d, kpAPI, meta, key_id)
+	err = resourceHandlePolicies(d, kpAPI, meta, key_id)
 	if err != nil {
-		return diag.Errorf("Could not create policies: %s", err)
+		return fmt.Errorf("Could not create policies: %s", err)
 	}
 	d.SetId(key.CRN)
-	return resourceIBMKmsKeyPolicyUpdate(context, d, meta)
+	return resourceIBMKmsKeyPolicyUpdate(d, meta)
 }
 
-func resourceIBMKmsKeyPolicyRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMKmsKeyPolicyRead(d *schema.ResourceData, meta interface{}) error {
 	kpAPI, err := meta.(ClientSession).keyManagementAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	crn := d.Id()
 	crnData := strings.Split(crn, ":")
@@ -220,31 +219,31 @@ func resourceIBMKmsKeyPolicyRead(context context.Context, d *schema.ResourceData
 
 	rsConClient, err := meta.(ClientSession).ResourceControllerV2API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	resourceInstanceGet := rc.GetResourceInstanceOptions{
 		ID: &instanceID,
 	}
 	instanceData, resp, err := rsConClient.GetResourceInstance(&resourceInstanceGet)
 	if err != nil || instanceData == nil {
-		return diag.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
+		return fmt.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
 	}
 	extensions := instanceData.Extensions
 	URL, err := KmsEndpointURL(kpAPI, endpointType, extensions)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	kpAPI.URL = URL
 
 	kpAPI.Config.InstanceID = instanceID
-	key, err := kpAPI.GetKey(context, keyid)
+	key, err := kpAPI.GetKey(context.TODO(), keyid)
 	if err != nil {
 		kpError := err.(*kp.Error)
 		if kpError.StatusCode == 404 || kpError.StatusCode == 409 {
 			d.SetId("")
 			return nil
 		}
-		return diag.Errorf("Get Key failed with error while reading policies: %s", err)
+		return fmt.Errorf("Get Key failed with error while reading policies: %s", err)
 	} else if key.State == 5 { //Refers to Deleted state of the Key
 		d.SetId("")
 		return nil
@@ -263,17 +262,17 @@ func resourceIBMKmsKeyPolicyRead(context context.Context, d *schema.ResourceData
 	d.Set(ResourceStatus, strconv.Itoa(state))
 	rcontroller, err := getBaseController(meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	id := key.ID
 	crn1 := strings.TrimSuffix(key.CRN, ":key:"+id)
 
 	d.Set(ResourceControllerURL, rcontroller+"/services/kms/"+url.QueryEscape(crn1)+"%3A%3A")
 
-	policies, err := kpAPI.GetPolicies(context, keyid)
+	policies, err := kpAPI.GetPolicies(context.TODO(), keyid)
 
 	if err != nil {
-		return diag.Errorf("Failed to read policies: %s", err)
+		return fmt.Errorf("Failed to read policies: %s", err)
 	}
 	if len(policies) == 0 {
 		log.Printf("No Policy Configurations read\n")
@@ -286,13 +285,13 @@ func resourceIBMKmsKeyPolicyRead(context context.Context, d *schema.ResourceData
 
 }
 
-func resourceIBMKmsKeyPolicyUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMKmsKeyPolicyUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	if d.HasChange("rotation") || d.HasChange("dual_auth_delete") {
 
 		kpAPI, err := meta.(ClientSession).keyManagementAPI()
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 		instanceID := d.Get("instance_id").(string)
@@ -300,19 +299,19 @@ func resourceIBMKmsKeyPolicyUpdate(context context.Context, d *schema.ResourceDa
 
 		rsConClient, err := meta.(ClientSession).ResourceControllerV2API()
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		resourceInstanceGet := rc.GetResourceInstanceOptions{
 			ID: &instanceID,
 		}
 		instanceData, resp, err := rsConClient.GetResourceInstance(&resourceInstanceGet)
 		if err != nil || instanceData == nil {
-			return diag.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
+			return fmt.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
 		}
 		extensions := instanceData.Extensions
 		URL, err := KmsEndpointURL(kpAPI, endpointType, extensions)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		kpAPI.URL = URL
 		kpAPI.Config.InstanceID = instanceID
@@ -321,17 +320,17 @@ func resourceIBMKmsKeyPolicyUpdate(context context.Context, d *schema.ResourceDa
 		crnData := strings.Split(crn, ":")
 		key_id := crnData[len(crnData)-1]
 
-		err = resourceHandlePolicies(context, d, kpAPI, meta, key_id)
+		err = resourceHandlePolicies(d, kpAPI, meta, key_id)
 		if err != nil {
 			resourceIBMKmsKeyRead(d, meta)
-			return diag.Errorf("Could not create policies: %s", err)
+			return fmt.Errorf("Could not create policies: %s", err)
 		}
 	}
-	return resourceIBMKmsKeyPolicyRead(context, d, meta)
+	return resourceIBMKmsKeyPolicyRead(d, meta)
 
 }
 
-func resourceIBMKmsKeyPolicyDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMKmsKeyPolicyDelete(d *schema.ResourceData, meta interface{}) error {
 	//Do not support delete Policies
 	log.Println("Warning:  `terraform destroy` does not remove the policies of the Key but only clears the state file. Key Policies get deleted when the associated key resource is destroyed.")
 	d.SetId("")
@@ -339,7 +338,7 @@ func resourceIBMKmsKeyPolicyDelete(context context.Context, d *schema.ResourceDa
 
 }
 
-func resourceHandlePolicies(context context.Context, d *schema.ResourceData, kpAPI *kp.Client, meta interface{}, key_id string) error {
+func resourceHandlePolicies(d *schema.ResourceData, kpAPI *kp.Client, meta interface{}, key_id string) error {
 	var setRotation, setDualAuthDelete, dualAuthEnable bool
 	var rotationInterval int
 
@@ -357,7 +356,7 @@ func resourceHandlePolicies(context context.Context, d *schema.ResourceData, kpA
 			setDualAuthDelete = true
 		}
 	}
-	_, err := kpAPI.SetPolicies(context, key_id, setRotation, rotationInterval, setDualAuthDelete, dualAuthEnable)
+	_, err := kpAPI.SetPolicies(context.TODO(), key_id, setRotation, rotationInterval, setDualAuthDelete, dualAuthEnable)
 	if err != nil {
 		return fmt.Errorf("Error while creating policies: %s", err)
 	}

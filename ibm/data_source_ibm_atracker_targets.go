@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/atrackerv1"
 )
 
 func dataSourceIBMAtrackerTargets() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAtrackerTargetsRead,
+		Read: dataSourceIBMAtrackerTargetsRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -127,18 +126,18 @@ func dataSourceIBMAtrackerTargets() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAtrackerTargetsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAtrackerTargetsRead(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listTargetsOptions := &atrackerv1.ListTargetsOptions{}
 
-	targetList, response, err := atrackerClient.ListTargetsWithContext(context, listTargetsOptions)
+	targetList, response, err := atrackerClient.ListTargetsWithContext(context.TODO(), listTargetsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListTargetsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ListTargetsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ListTargetsWithContext failed %s\n%s", err, response)
 	}
 
 	// Use the provided filter argument and construct a new list with only the requested resource(s)
@@ -161,7 +160,7 @@ func dataSourceIBMAtrackerTargetsRead(context context.Context, d *schema.Resourc
 
 	if suppliedFilter {
 		if len(targetList.Targets) == 0 {
-			return diag.FromErr(fmt.Errorf("no Targets found with name %s", name))
+			return fmt.Errorf("no Targets found with name %s", name)
 		}
 		d.SetId(name)
 	} else {
@@ -171,7 +170,7 @@ func dataSourceIBMAtrackerTargetsRead(context context.Context, d *schema.Resourc
 	if targetList.Targets != nil {
 		err = d.Set("targets", dataSourceTargetListFlattenTargets(targetList.Targets))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting targets %s", err))
+			return fmt.Errorf("Error setting targets %s", err)
 		}
 	}
 

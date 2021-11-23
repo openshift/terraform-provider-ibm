@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/platform-services-go-sdk/ibmcloudshellv1"
@@ -17,11 +16,11 @@ import (
 
 func resourceIBMCloudShellAccountSettings() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMCloudShellAccountSettingsCreate,
-		ReadContext:   resourceIBMCloudShellAccountSettingsRead,
-		UpdateContext: resourceIBMCloudShellAccountSettingsUpdate,
-		DeleteContext: resourceIBMCloudShellAccountSettingsDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMCloudShellAccountSettingsCreate,
+		Read:     resourceIBMCloudShellAccountSettingsRead,
+		Update:   resourceIBMCloudShellAccountSettingsUpdate,
+		Delete:   resourceIBMCloudShellAccountSettingsDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"account_id": {
@@ -118,10 +117,10 @@ func resourceIBMCloudShellAccountSettings() *schema.Resource {
 	}
 }
 
-func resourceIBMCloudShellAccountSettingsCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCloudShellAccountSettingsCreate(d *schema.ResourceData, meta interface{}) error {
 	ibmCloudShellClient, err := meta.(ClientSession).IBMCloudShellV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateAccountSettingsOptions := &ibmcloudshellv1.UpdateAccountSettingsOptions{}
@@ -158,15 +157,15 @@ func resourceIBMCloudShellAccountSettingsCreate(context context.Context, d *sche
 		updateAccountSettingsOptions.SetRegions(regions)
 	}
 
-	accountSettings, response, err := ibmCloudShellClient.UpdateAccountSettingsWithContext(context, updateAccountSettingsOptions)
+	accountSettings, response, err := ibmCloudShellClient.UpdateAccountSettingsWithContext(context.TODO(), updateAccountSettingsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] UpdateAccountSettingsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("UpdateAccountSettingsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("UpdateAccountSettingsWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*accountSettings.ID)
 
-	return resourceIBMCloudShellAccountSettingsRead(context, d, meta)
+	return resourceIBMCloudShellAccountSettingsRead(d, meta)
 }
 
 func resourceIBMCloudShellAccountSettingsMapToFeature(featureMap map[string]interface{}) ibmcloudshellv1.Feature {
@@ -195,40 +194,40 @@ func resourceIBMCloudShellAccountSettingsMapToRegionSetting(regionSettingMap map
 	return regionSetting
 }
 
-func resourceIBMCloudShellAccountSettingsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCloudShellAccountSettingsRead(d *schema.ResourceData, meta interface{}) error {
 	ibmCloudShellClient, err := meta.(ClientSession).IBMCloudShellV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getAccountSettingsOptions := &ibmcloudshellv1.GetAccountSettingsOptions{}
 
 	getAccountSettingsOptions.SetAccountID(d.Id())
 
-	accountSettings, response, err := ibmCloudShellClient.GetAccountSettingsWithContext(context, getAccountSettingsOptions)
+	accountSettings, response, err := ibmCloudShellClient.GetAccountSettingsWithContext(context.TODO(), getAccountSettingsOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetAccountSettingsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetAccountSettingsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetAccountSettingsWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("account_id", accountSettings.AccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting account_id: %s", err))
+		return fmt.Errorf("[ERROR] Error setting account_id: %s", err)
 	}
 	if err = d.Set("rev", accountSettings.Rev); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting rev: %s", err))
+		return fmt.Errorf("[ERROR] Error setting rev: %s", err)
 	}
 	if err = d.Set("default_enable_new_features", accountSettings.DefaultEnableNewFeatures); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting default_enable_new_features: %s", err))
+		return fmt.Errorf("[ERROR] Error setting default_enable_new_features: %s", err)
 	}
 	if err = d.Set("default_enable_new_regions", accountSettings.DefaultEnableNewRegions); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting default_enable_new_regions: %s", err))
+		return fmt.Errorf("[ERROR] Error setting default_enable_new_regions: %s", err)
 	}
 	if err = d.Set("enabled", accountSettings.Enabled); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting enabled: %s", err))
+		return fmt.Errorf("[ERROR] Error setting enabled: %s", err)
 	}
 	if accountSettings.Features != nil {
 		features := []map[string]interface{}{}
@@ -237,7 +236,7 @@ func resourceIBMCloudShellAccountSettingsRead(context context.Context, d *schema
 			features = append(features, featuresItemMap)
 		}
 		if err = d.Set("features", features); err != nil {
-			return diag.FromErr(fmt.Errorf("[ERROR] Error setting features: %s", err))
+			return fmt.Errorf("[ERROR] Error setting features: %s", err)
 		}
 	}
 	if accountSettings.Regions != nil {
@@ -247,23 +246,23 @@ func resourceIBMCloudShellAccountSettingsRead(context context.Context, d *schema
 			regions = append(regions, regionsItemMap)
 		}
 		if err = d.Set("regions", regions); err != nil {
-			return diag.FromErr(fmt.Errorf("[ERROR] Error setting regions: %s", err))
+			return fmt.Errorf("[ERROR] Error setting regions: %s", err)
 		}
 	}
 	if err = d.Set("created_at", intValue(accountSettings.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting created_at: %s", err))
+		return fmt.Errorf("[ERROR] Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", accountSettings.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting created_by: %s", err))
+		return fmt.Errorf("[ERROR] Error setting created_by: %s", err)
 	}
 	if err = d.Set("type", accountSettings.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting type: %s", err))
+		return fmt.Errorf("[ERROR] Error setting type: %s", err)
 	}
 	if err = d.Set("updated_at", intValue(accountSettings.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting updated_at: %s", err))
+		return fmt.Errorf("[ERROR] Error setting updated_at: %s", err)
 	}
 	if err = d.Set("updated_by", accountSettings.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error setting updated_by: %s", err))
+		return fmt.Errorf("[ERROR] Error setting updated_by: %s", err)
 	}
 
 	return nil
@@ -295,10 +294,10 @@ func resourceIBMCloudShellAccountSettingsRegionSettingToMap(regionSetting ibmclo
 	return regionSettingMap
 }
 
-func resourceIBMCloudShellAccountSettingsUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCloudShellAccountSettingsUpdate(d *schema.ResourceData, meta interface{}) error {
 	ibmCloudShellClient, err := meta.(ClientSession).IBMCloudShellV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateAccountSettingsOptions := &ibmcloudshellv1.UpdateAccountSettingsOptions{}
@@ -340,17 +339,17 @@ func resourceIBMCloudShellAccountSettingsUpdate(context context.Context, d *sche
 	}
 
 	if hasChange {
-		_, response, err := ibmCloudShellClient.UpdateAccountSettingsWithContext(context, updateAccountSettingsOptions)
+		_, response, err := ibmCloudShellClient.UpdateAccountSettingsWithContext(context.TODO(), updateAccountSettingsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateAccountSettingsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("UpdateAccountSettingsWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("UpdateAccountSettingsWithContext failed %s\n%s", err, response)
 		}
 	}
 
-	return resourceIBMCloudShellAccountSettingsRead(context, d, meta)
+	return resourceIBMCloudShellAccountSettingsRead(d, meta)
 }
 
-func resourceIBMCloudShellAccountSettingsDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCloudShellAccountSettingsDelete(d *schema.ResourceData, meta interface{}) error {
 	// Cloud Shell does not support delete of account settings subsequently delete is a no-op.
 	return nil
 }

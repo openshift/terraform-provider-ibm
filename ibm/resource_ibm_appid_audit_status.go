@@ -2,21 +2,22 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDAuditStatus() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDAuditStatusCreate,
-		ReadContext:   resourceIBMAppIDAuditStatusRead,
-		DeleteContext: resourceIBMAppIDAuditStatusDelete,
-		UpdateContext: resourceIBMAppIDAuditStatusUpdate,
+		Create: resourceIBMAppIDAuditStatusCreate,
+		Read:   resourceIBMAppIDAuditStatusRead,
+		Delete: resourceIBMAppIDAuditStatusDelete,
+		Update: resourceIBMAppIDAuditStatusUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -34,16 +35,16 @@ func resourceIBMAppIDAuditStatus() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDAuditStatusRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDAuditStatusRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	auditStatus, resp, err := appIDClient.GetAuditStatusWithContext(ctx, &appid.GetAuditStatusOptions{
+	auditStatus, resp, err := appIDClient.GetAuditStatusWithContext(context.TODO(), &appid.GetAuditStatusOptions{
 		TenantID: &tenantID,
 	})
 
@@ -54,7 +55,7 @@ func resourceIBMAppIDAuditStatusRead(ctx context.Context, d *schema.ResourceData
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID audit status: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID audit status: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *auditStatus.IsActive)
@@ -63,17 +64,17 @@ func resourceIBMAppIDAuditStatusRead(ctx context.Context, d *schema.ResourceData
 	return nil
 }
 
-func resourceIBMAppIDAuditStatusCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDAuditStatusCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	isActive := d.Get("is_active").(bool)
 
-	resp, err := appIDClient.SetAuditStatusWithContext(ctx, &appid.SetAuditStatusOptions{
+	resp, err := appIDClient.SetAuditStatusWithContext(context.TODO(), &appid.SetAuditStatusOptions{
 		TenantID: &tenantID,
 		IsActive: &isActive,
 	})
@@ -85,35 +86,35 @@ func resourceIBMAppIDAuditStatusCreate(ctx context.Context, d *schema.ResourceDa
 			return nil
 		}
 
-		return diag.Errorf("Error setting AppID audit status: %s\n%s", err, resp)
+		return fmt.Errorf("Error setting AppID audit status: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
-	return resourceIBMAppIDAuditStatusRead(ctx, d, meta)
+	return resourceIBMAppIDAuditStatusRead(d, meta)
 }
 
-func resourceIBMAppIDAuditStatusDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDAuditStatusDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	resp, err := appIDClient.SetAuditStatusWithContext(ctx, &appid.SetAuditStatusOptions{
+	resp, err := appIDClient.SetAuditStatusWithContext(context.TODO(), &appid.SetAuditStatusOptions{
 		TenantID: &tenantID,
 		IsActive: helpers.Bool(false),
 	})
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID audit status: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID audit status: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
 	return nil
 }
 
-func resourceIBMAppIDAuditStatusUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	return resourceIBMAppIDAuditStatusCreate(ctx, d, m)
+func resourceIBMAppIDAuditStatusUpdate(d *schema.ResourceData, m interface{}) error {
+	return resourceIBMAppIDAuditStatusCreate(d, m)
 }

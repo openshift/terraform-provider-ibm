@@ -4,12 +4,10 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
@@ -17,10 +15,10 @@ import (
 
 func resourceIBMIamTrustedProfileLink() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMIamTrustedProfileLinkCreate,
-		ReadContext:   resourceIBMIamTrustedProfileLinkRead,
-		DeleteContext: resourceIBMIamTrustedProfileLinkDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMIamTrustedProfileLinkCreate,
+		Read:     resourceIBMIamTrustedProfileLinkRead,
+		Delete:   resourceIBMIamTrustedProfileLinkDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"profile_id": &schema.Schema{
@@ -92,10 +90,10 @@ func resourceIBMIamTrustedProfileLink() *schema.Resource {
 	}
 }
 
-func resourceIBMIamTrustedProfileLinkCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileLinkCreate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createLinkOptions := &iamidentityv1.CreateLinkOptions{}
@@ -111,12 +109,12 @@ func resourceIBMIamTrustedProfileLinkCreate(context context.Context, d *schema.R
 	profileLink, response, err := iamIdentityClient.CreateLink(createLinkOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateLink failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateLink failed %s\n%s", err, response))
+		return fmt.Errorf("CreateLink failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", profile, *profileLink.ID))
 
-	return resourceIBMIamTrustedProfileLinkRead(context, d, meta)
+	return resourceIBMIamTrustedProfileLinkRead(d, meta)
 }
 
 func resourceIBMIamTrustedProfileLinkMapToCreateProfileLinkRequestLink(createProfileLinkRequestLinkMap map[string]interface{}) iamidentityv1.CreateProfileLinkRequestLink {
@@ -131,14 +129,14 @@ func resourceIBMIamTrustedProfileLinkMapToCreateProfileLinkRequestLink(createPro
 	return createProfileLinkRequestLink
 }
 
-func resourceIBMIamTrustedProfileLinkRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileLinkRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Invalid ID %s", err))
+		return fmt.Errorf("Invalid ID %s", err)
 	}
 	getLinkOptions := &iamidentityv1.GetLinkOptions{}
 
@@ -152,33 +150,33 @@ func resourceIBMIamTrustedProfileLinkRead(context context.Context, d *schema.Res
 			return nil
 		}
 		log.Printf("[DEBUG] GetLink failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetLink failed %s\n%s", err, response))
+		return fmt.Errorf("GetLink failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("profile_id", getLinkOptions.ProfileID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting profile_id: %s", err))
+		return fmt.Errorf("Error setting profile_id: %s", err)
 	}
 	if err = d.Set("cr_type", profileLink.CrType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting cr_type: %s", err))
+		return fmt.Errorf("Error setting cr_type: %s", err)
 	}
 	linkMap := resourceIBMIamTrustedProfileLinkCreateProfileLinkRequestLinkToMap(*profileLink.Link)
 	if err = d.Set("link", []map[string]interface{}{linkMap}); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting link: %s", err))
+		return fmt.Errorf("Error setting link: %s", err)
 	}
 	if err = d.Set("name", profileLink.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("link_id", profileLink.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting id: %s", err))
+		return fmt.Errorf("Error setting id: %s", err)
 	}
 	if err = d.Set("entity_tag", profileLink.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(profileLink.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("modified_at", dateTimeToString(profileLink.ModifiedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 
 	return nil
@@ -196,14 +194,14 @@ func resourceIBMIamTrustedProfileLinkCreateProfileLinkRequestLinkToMap(createPro
 	return createProfileLinkRequestLinkMap
 }
 
-func resourceIBMIamTrustedProfileLinkDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileLinkDelete(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Invalid ID %s", err))
+		return fmt.Errorf("Invalid ID %s", err)
 	}
 
 	deleteLinkOptions := &iamidentityv1.DeleteLinkOptions{}
@@ -214,7 +212,7 @@ func resourceIBMIamTrustedProfileLinkDelete(context context.Context, d *schema.R
 	response, err := iamIdentityClient.DeleteLink(deleteLinkOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteLink failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteLink failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteLink failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

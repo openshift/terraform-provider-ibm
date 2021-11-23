@@ -6,8 +6,7 @@ package ibm
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"log"
 	"time"
 
@@ -16,11 +15,11 @@ import (
 
 func resourceIbmEnterprise() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmEnterpriseCreate,
-		ReadContext:   resourceIbmEnterpriseRead,
-		UpdateContext: resourceIbmEnterpriseUpdate,
-		DeleteContext: resourceIbmEnterpriseDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmEnterpriseCreate,
+		Read:     resourceIbmEnterpriseRead,
+		Update:   resourceIbmEnterpriseUpdate,
+		Delete:   resourceIbmEnterpriseDelete,
+		Importer: &schema.ResourceImporter{},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
 			Update: schema.DefaultTimeout(10 * time.Minute),
@@ -98,10 +97,10 @@ func resourceIbmEnterprise() *schema.Resource {
 	}
 }
 
-func resourceIbmEnterpriseCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseCreate(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	createEnterpriseOptions := &enterprisemanagementv1.CreateEnterpriseOptions{}
 	createEnterpriseOptions.SetSourceAccountID(d.Get("source_account_id").(string))
@@ -110,82 +109,82 @@ func resourceIbmEnterpriseCreate(context context.Context, d *schema.ResourceData
 	if _, ok := d.GetOk("domain"); ok {
 		createEnterpriseOptions.SetDomain(d.Get("domain").(string))
 	}
-	createEnterpriseResponse, response, err := enterpriseManagementClient.CreateEnterpriseWithContext(context, createEnterpriseOptions)
+	createEnterpriseResponse, response, err := enterpriseManagementClient.CreateEnterpriseWithContext(context.TODO(), createEnterpriseOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateEnterpriseWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 	d.SetId(*createEnterpriseResponse.EnterpriseID)
-	return resourceIbmEnterpriseRead(context, d, meta)
+	return resourceIbmEnterpriseRead(d, meta)
 }
 
-func resourceIbmEnterpriseRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseRead(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getEnterpriseOptions := &enterprisemanagementv1.GetEnterpriseOptions{}
 
 	getEnterpriseOptions.SetEnterpriseID(d.Id())
 
-	enterprise, response, err := enterpriseManagementClient.GetEnterpriseWithContext(context, getEnterpriseOptions)
+	enterprise, response, err := enterpriseManagementClient.GetEnterpriseWithContext(context.TODO(), getEnterpriseOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetEnterpriseWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	//if err = d.Set("source_account_id", enterprise.); err != nil {
-	//	return diag.FromErr(fmt.Errorf("Error setting source_account_id: %s", err))
+	//	return fmt.Errorf("Error setting source_account_id: %s", err)
 	//}
 	if err = d.Set("name", enterprise.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("primary_contact_iam_id", enterprise.PrimaryContactIamID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting primary_contact_iam_id: %s", err))
+		return fmt.Errorf("Error setting primary_contact_iam_id: %s", err)
 	}
 	if err = d.Set("domain", enterprise.Domain); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting domain: %s", err))
+		return fmt.Errorf("Error setting domain: %s", err)
 	}
 	if err = d.Set("url", enterprise.URL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting url: %s", err))
+		return fmt.Errorf("Error setting url: %s", err)
 	}
 	if err = d.Set("enterprise_account_id", enterprise.EnterpriseAccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting enterprise_account_id: %s", err))
+		return fmt.Errorf("Error setting enterprise_account_id: %s", err)
 	}
 	if err = d.Set("crn", enterprise.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("state", enterprise.State); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting state: %s", err))
+		return fmt.Errorf("Error setting state: %s", err)
 	}
 	if err = d.Set("primary_contact_email", enterprise.PrimaryContactEmail); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting primary_contact_email: %s", err))
+		return fmt.Errorf("Error setting primary_contact_email: %s", err)
 	}
 	if err = d.Set("created_at", enterprise.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", enterprise.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("updated_at", enterprise.UpdatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+		return fmt.Errorf("Error setting updated_at: %s", err)
 	}
 	if err = d.Set("updated_by", enterprise.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+		return fmt.Errorf("Error setting updated_by: %s", err)
 	}
 
 	return nil
 }
 
-func resourceIbmEnterpriseUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseUpdate(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateEnterpriseOptions := &enterprisemanagementv1.UpdateEnterpriseOptions{}
@@ -213,17 +212,17 @@ func resourceIbmEnterpriseUpdate(context context.Context, d *schema.ResourceData
 	}
 
 	if hasChange {
-		response, err := enterpriseManagementClient.UpdateEnterpriseWithContext(context, updateEnterpriseOptions)
+		response, err := enterpriseManagementClient.UpdateEnterpriseWithContext(context.TODO(), updateEnterpriseOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateEnterpriseWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
-	return resourceIbmEnterpriseRead(context, d, meta)
+	return resourceIbmEnterpriseRead(d, meta)
 }
 
-func resourceIbmEnterpriseDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseDelete(d *schema.ResourceData, meta interface{}) error {
 	d.SetId("")
 
 	return nil

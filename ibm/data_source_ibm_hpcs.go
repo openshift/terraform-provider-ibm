@@ -4,14 +4,12 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/IBM/ibm-hpcs-tke-sdk/tkesdk"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM-Cloud/bluemix-go/api/resource/resourcev2/controllerv2"
 	"github.com/IBM-Cloud/bluemix-go/models"
@@ -19,7 +17,7 @@ import (
 
 func dataSourceIBMHPCS() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMHPCSRead,
+		Read: dataSourceIBMHPCSRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -156,10 +154,10 @@ func dataSourceIBMHPCS() *schema.Resource {
 	}
 }
 
-func dataSourceIBMHPCSRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMHPCSRead(d *schema.ResourceData, meta interface{}) error {
 	rsConClient, err := meta.(ClientSession).ResourceControllerAPIV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	rsAPI := rsConClient.ResourceServiceInstanceV2()
 	name := d.Get("name").(string)
@@ -173,14 +171,14 @@ func dataSourceIBMHPCSRead(context context.Context, d *schema.ResourceData, meta
 	} else {
 		defaultRg, err := defaultResourceGroup(meta)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		rsInstQuery.ResourceGroupID = defaultRg
 	}
 
 	rsCatClient, err := meta.(ClientSession).ResourceCatalogAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	rsCatRepo := rsCatClient.ResourceCatalog()
 
@@ -188,7 +186,7 @@ func dataSourceIBMHPCSRead(context context.Context, d *schema.ResourceData, meta
 
 		serviceOff, err := rsCatRepo.FindByName(service.(string), true)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("[ERROR] Error retrieving service offering: %s", err))
+			return fmt.Errorf("[ERROR] Error retrieving service offering: %s", err)
 		}
 
 		rsInstQuery.ServiceID = serviceOff[0].ID
@@ -198,7 +196,7 @@ func dataSourceIBMHPCSRead(context context.Context, d *schema.ResourceData, meta
 
 	instances, err = rsAPI.ListInstances(rsInstQuery)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	var filteredInstances []models.ServiceInstanceV2
 	var location string
@@ -215,14 +213,14 @@ func dataSourceIBMHPCSRead(context context.Context, d *schema.ResourceData, meta
 	}
 
 	if len(filteredInstances) == 0 {
-		return diag.FromErr(fmt.Errorf("[ERROR] No resource instance found with name [%s]\nIf not specified please specify more filters like resource_group_id if instance doesn't exists in default group, location or service", name))
+		return fmt.Errorf("[ERROR] No resource instance found with name [%s]\nIf not specified please specify more filters like resource_group_id if instance doesn't exists in default group, location or service", name)
 	}
 
 	var instance models.ServiceInstanceV2
 
 	if len(filteredInstances) > 1 {
-		return diag.FromErr(fmt.Errorf(
-			"[ERROR] More than one resource instance found with name matching [%s]\nIf not specified please specify more filters like resource_group_id if instance doesn't exists in default group, location or service", name))
+		return fmt.Errorf(
+			"[ERROR] More than one resource instance found with name matching [%s]\nIf not specified please specify more filters like resource_group_id if instance doesn't exists in default group, location or service", name)
 	}
 	instance = filteredInstances[0]
 
@@ -232,7 +230,7 @@ func dataSourceIBMHPCSRead(context context.Context, d *schema.ResourceData, meta
 	d.Set("location", instance.RegionID)
 	serviceOff, err := rsCatRepo.GetServiceName(instance.ServiceID)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error retrieving service offering: %s", err))
+		return fmt.Errorf("[ERROR] Error retrieving service offering: %s", err)
 	}
 
 	d.Set("service", serviceOff)
@@ -270,19 +268,19 @@ func dataSourceIBMHPCSRead(context context.Context, d *schema.ResourceData, meta
 	}
 	servicePlan, err := rsCatRepo.GetServicePlanName(instance.ResourcePlanID)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error retrieving plan: %s", err))
+		return fmt.Errorf("[ERROR] Error retrieving plan: %s", err)
 	}
 	d.Set("plan", servicePlan)
 	d.Set("crn", instance.Crn.String())
 
 	ci, err := hsmClient(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	ci.InstanceId = instance.Guid
 	hsmInfo, err := tkesdk.Query(ci)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error Quering HSM config %s", err))
+		return fmt.Errorf("[ERROR] Error Quering HSM config %s", err)
 	}
 	d.Set("hsm_info", FlattenHSMInfo(hsmInfo))
 

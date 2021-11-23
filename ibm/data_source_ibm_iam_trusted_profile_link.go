@@ -4,19 +4,17 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
 
 func dataSourceIBMIamTrustedProfileLink() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMIamTrustedProfileLinkRead,
+		Read: dataSourceIBMIamTrustedProfileLinkRead,
 
 		Schema: map[string]*schema.Schema{
 			"profile_id": &schema.Schema{
@@ -81,10 +79,10 @@ func dataSourceIBMIamTrustedProfileLink() *schema.Resource {
 	}
 }
 
-func dataSourceIBMIamTrustedProfileLinkRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMIamTrustedProfileLinkRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getLinkOptions := &iamidentityv1.GetLinkOptions{}
@@ -95,30 +93,30 @@ func dataSourceIBMIamTrustedProfileLinkRead(context context.Context, d *schema.R
 	profileLink, response, err := iamIdentityClient.GetLink(getLinkOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetLink failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetLink failed %s\n%s", err, response))
+		return fmt.Errorf("GetLink failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", *getLinkOptions.ProfileID, *getLinkOptions.LinkID))
 	if err = d.Set("entity_tag", profileLink.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(profileLink.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("modified_at", dateTimeToString(profileLink.ModifiedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 	if err = d.Set("name", profileLink.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("cr_type", profileLink.CrType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting cr_type: %s", err))
+		return fmt.Errorf("Error setting cr_type: %s", err)
 	}
 
 	if profileLink.Link != nil {
 		err = d.Set("link", dataSourceProfileLinkFlattenLink(*profileLink.Link))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting link %s", err))
+			return fmt.Errorf("Error setting link %s", err)
 		}
 	}
 

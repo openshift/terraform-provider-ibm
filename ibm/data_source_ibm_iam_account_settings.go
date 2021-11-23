@@ -4,19 +4,17 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
 
 func dataSourceIBMIAMAccountSettings() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIamAccountSettingsRead,
+		Read: dataSourceIbmIamAccountSettingsRead,
 
 		Schema: map[string]*schema.Schema{
 			"include_history": &schema.Schema{
@@ -116,10 +114,10 @@ func dataSourceIBMIAMAccountSettings() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIamAccountSettingsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIamAccountSettingsRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getAccountSettingsOptions := &iamidentityv1.GetAccountSettingsOptions{}
@@ -127,7 +125,7 @@ func dataSourceIbmIamAccountSettingsRead(context context.Context, d *schema.Reso
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getAccountSettingsOptions.SetAccountID(userDetails.userAccount)
@@ -135,44 +133,44 @@ func dataSourceIbmIamAccountSettingsRead(context context.Context, d *schema.Reso
 	accountSettingsResponse, response, err := iamIdentityClient.GetAccountSettings(getAccountSettingsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetAccountSettings failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(userDetails.userAccount)
 
 	if err = d.Set("account_id", accountSettingsResponse.AccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting account_id: %s", err))
+		return fmt.Errorf("Error setting account_id: %s", err)
 	}
 	if err = d.Set("restrict_create_service_id", accountSettingsResponse.RestrictCreateServiceID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting restrict_create_service_id: %s", err))
+		return fmt.Errorf("Error setting restrict_create_service_id: %s", err)
 	}
 	if err = d.Set("restrict_create_platform_apikey", accountSettingsResponse.RestrictCreatePlatformApikey); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting restrict_create_platform_apikey: %s", err))
+		return fmt.Errorf("Error setting restrict_create_platform_apikey: %s", err)
 	}
 	if err = d.Set("allowed_ip_addresses", accountSettingsResponse.AllowedIPAddresses); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting allowed_ip_addresses: %s", err))
+		return fmt.Errorf("Error setting allowed_ip_addresses: %s", err)
 	}
 	if err = d.Set("entity_tag", accountSettingsResponse.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("mfa", accountSettingsResponse.Mfa); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting mfa: %s", err))
+		return fmt.Errorf("Error setting mfa: %s", err)
 	}
 
 	if accountSettingsResponse.History != nil {
 		err = d.Set("history", dataSourceAccountSettingsResponseFlattenHistory(accountSettingsResponse.History))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting history %s", err))
+			return fmt.Errorf("Error setting history %s", err)
 		}
 	}
 	if err = d.Set("session_expiration_in_seconds", accountSettingsResponse.SessionExpirationInSeconds); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting session_expiration_in_seconds: %s", err))
+		return fmt.Errorf("Error setting session_expiration_in_seconds: %s", err)
 	}
 	if err = d.Set("session_invalidation_in_seconds", accountSettingsResponse.SessionInvalidationInSeconds); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting session_invalidation_in_seconds: %s", err))
+		return fmt.Errorf("Error setting session_invalidation_in_seconds: %s", err)
 	}
 	if err = d.Set("max_sessions_per_identity", accountSettingsResponse.MaxSessionsPerIdentity); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting max_sessions_per_identity: %s", err))
+		return fmt.Errorf("Error setting max_sessions_per_identity: %s", err)
 	}
 
 	return nil

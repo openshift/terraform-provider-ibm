@@ -7,15 +7,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	en "github.com/IBM/event-notifications-go-admin-sdk/eventnotificationsv1"
 )
 
 func dataSourceIBMEnDestination() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMEnDestinationRead,
+		Read: dataSourceIBMEnDestinationRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance_guid": {
@@ -108,10 +107,10 @@ func dataSourceIBMEnDestination() *schema.Resource {
 	}
 }
 
-func dataSourceIBMEnDestinationRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMEnDestinationRead(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.GetDestinationOptions{}
@@ -119,47 +118,47 @@ func dataSourceIBMEnDestinationRead(context context.Context, d *schema.ResourceD
 	options.SetInstanceID(d.Get("instance_guid").(string))
 	options.SetID(d.Get("destination_id").(string))
 
-	result, response, err := enClient.GetDestinationWithContext(context, options)
+	result, response, err := enClient.GetDestinationWithContext(context.TODO(), options)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("GetDestination failed %s\n%s", err, response))
+		return fmt.Errorf("GetDestination failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", *options.InstanceID, *options.ID))
 
 	if err = d.Set("name", result.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting name: %s", err))
+		return fmt.Errorf("error setting name: %s", err)
 	}
 
 	if result.Description != nil {
 		if err = d.Set("description", result.Description); err != nil {
-			return diag.FromErr(fmt.Errorf("error setting description: %s", err))
+			return fmt.Errorf("error setting description: %s", err)
 		}
 	}
 
 	if err = d.Set("type", result.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting type: %s", err))
+		return fmt.Errorf("error setting type: %s", err)
 	}
 
 	if result.Config != nil {
 		err = d.Set("config", enDestinationFlattenConfig(*result.Config))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("error setting config %s", err))
+			return fmt.Errorf("error setting config %s", err)
 		}
 	}
 
 	if result.SubscriptionNames != nil {
 		err = d.Set("subscription_names", result.SubscriptionNames)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("error setting subscription_names %s", err))
+			return fmt.Errorf("error setting subscription_names %s", err)
 		}
 	}
 
 	if err = d.Set("updated_at", dateTimeToString(result.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting updated_at: %s", err))
+		return fmt.Errorf("error setting updated_at: %s", err)
 	}
 
 	if err = d.Set("subscription_count", intValue(result.SubscriptionCount)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting subscription_count: %s", err))
+		return fmt.Errorf("error setting subscription_count: %s", err)
 	}
 
 	return nil

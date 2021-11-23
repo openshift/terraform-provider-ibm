@@ -2,20 +2,21 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDThemeText() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Update theme texts of the App ID login widget",
-		CreateContext: resourceIBMAppIDThemeTextCreate,
-		ReadContext:   resourceIBMAppIDThemeTextRead,
-		UpdateContext: resourceIBMAppIDThemeTextUpdate,
-		DeleteContext: resourceIBMAppIDThemeTextDelete,
+		Description: "Update theme texts of the App ID login widget",
+		Create:      resourceIBMAppIDThemeTextCreate,
+		Read:        resourceIBMAppIDThemeTextRead,
+		Update:      resourceIBMAppIDThemeTextUpdate,
+		Delete:      resourceIBMAppIDThemeTextDelete,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Type:        schema.TypeString,
@@ -35,16 +36,16 @@ func resourceIBMAppIDThemeText() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDThemeTextRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDThemeTextRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	text, resp, err := appIDClient.GetThemeTextWithContext(ctx, &appid.GetThemeTextOptions{
+	text, resp, err := appIDClient.GetThemeTextWithContext(context.TODO(), &appid.GetThemeTextOptions{
 		TenantID: &tenantID,
 	})
 
@@ -55,7 +56,7 @@ func resourceIBMAppIDThemeTextRead(ctx context.Context, d *schema.ResourceData, 
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID theme text: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID theme text: %s\n%s", err, resp)
 	}
 
 	if text.TabTitle != nil {
@@ -71,11 +72,11 @@ func resourceIBMAppIDThemeTextRead(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func resourceIBMAppIDThemeTextCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDThemeTextCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -86,26 +87,26 @@ func resourceIBMAppIDThemeTextCreate(ctx context.Context, d *schema.ResourceData
 		Footnote: helpers.String(d.Get("footnote").(string)),
 	}
 
-	resp, err := appIDClient.PostThemeTextWithContext(ctx, input)
+	resp, err := appIDClient.PostThemeTextWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error setting AppID theme text: %s\n%s", err, resp)
+		return fmt.Errorf("Error setting AppID theme text: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDThemeTextRead(ctx, d, meta)
+	return resourceIBMAppIDThemeTextRead(d, meta)
 }
 
-func resourceIBMAppIDThemeTextUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return resourceIBMAppIDThemeTextCreate(ctx, d, meta)
+func resourceIBMAppIDThemeTextUpdate(d *schema.ResourceData, meta interface{}) error {
+	return resourceIBMAppIDThemeTextCreate(d, meta)
 }
 
-func resourceIBMAppIDThemeTextDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDThemeTextDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -116,10 +117,10 @@ func resourceIBMAppIDThemeTextDelete(ctx context.Context, d *schema.ResourceData
 		Footnote: helpers.String("Powered by App ID"),
 	}
 
-	resp, err := appIDClient.PostThemeTextWithContext(ctx, input)
+	resp, err := appIDClient.PostThemeTextWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID theme text: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID theme text: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

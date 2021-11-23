@@ -8,19 +8,18 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/schematics-go-sdk/schematicsv1"
 )
 
 func resourceIBMSchematicsInventory() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMSchematicsInventoryCreate,
-		ReadContext:   resourceIBMSchematicsInventoryRead,
-		UpdateContext: resourceIBMSchematicsInventoryUpdate,
-		DeleteContext: resourceIBMSchematicsInventoryDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMSchematicsInventoryCreate,
+		Read:     resourceIBMSchematicsInventoryRead,
+		Update:   resourceIBMSchematicsInventoryUpdate,
+		Delete:   resourceIBMSchematicsInventoryDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -104,10 +103,10 @@ func resourceIBMSchematicsInventoryValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMSchematicsInventoryCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsInventoryCreate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createInventoryOptions := &schematicsv1.CreateInventoryOptions{}
@@ -131,77 +130,77 @@ func resourceIBMSchematicsInventoryCreate(context context.Context, d *schema.Res
 		createInventoryOptions.SetResourceQueries(expandStringList(d.Get("resource_queries").([]interface{})))
 	}
 
-	inventoryResourceRecord, response, err := schematicsClient.CreateInventoryWithContext(context, createInventoryOptions)
+	inventoryResourceRecord, response, err := schematicsClient.CreateInventoryWithContext(context.TODO(), createInventoryOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateInventoryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateInventoryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateInventoryWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*inventoryResourceRecord.ID)
 
-	return resourceIBMSchematicsInventoryRead(context, d, meta)
+	return resourceIBMSchematicsInventoryRead(d, meta)
 }
 
-func resourceIBMSchematicsInventoryRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsInventoryRead(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getInventoryOptions := &schematicsv1.GetInventoryOptions{}
 
 	getInventoryOptions.SetInventoryID(d.Id())
 
-	inventoryResourceRecord, response, err := schematicsClient.GetInventoryWithContext(context, getInventoryOptions)
+	inventoryResourceRecord, response, err := schematicsClient.GetInventoryWithContext(context.TODO(), getInventoryOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetInventoryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetInventoryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetInventoryWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("name", inventoryResourceRecord.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("description", inventoryResourceRecord.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("location", inventoryResourceRecord.Location); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting location: %s", err))
+		return fmt.Errorf("Error setting location: %s", err)
 	}
 	if err = d.Set("resource_group", inventoryResourceRecord.ResourceGroup); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_group: %s", err))
+		return fmt.Errorf("Error setting resource_group: %s", err)
 	}
 	if err = d.Set("inventories_ini", inventoryResourceRecord.InventoriesIni); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting inventories_ini: %s", err))
+		return fmt.Errorf("Error setting inventories_ini: %s", err)
 	}
 	if inventoryResourceRecord.ResourceQueries != nil {
 		if err = d.Set("resource_queries", inventoryResourceRecord.ResourceQueries); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resource_queries: %s", err))
+			return fmt.Errorf("Error setting resource_queries: %s", err)
 		}
 	}
 	if err = d.Set("created_at", dateTimeToString(inventoryResourceRecord.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", inventoryResourceRecord.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("updated_at", dateTimeToString(inventoryResourceRecord.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+		return fmt.Errorf("Error setting updated_at: %s", err)
 	}
 	if err = d.Set("updated_by", inventoryResourceRecord.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+		return fmt.Errorf("Error setting updated_by: %s", err)
 	}
 
 	return nil
 }
 
-func resourceIBMSchematicsInventoryUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsInventoryUpdate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateInventoryOptions := &schematicsv1.ReplaceInventoryOptions{}
@@ -241,30 +240,30 @@ func resourceIBMSchematicsInventoryUpdate(context context.Context, d *schema.Res
 	}
 
 	if hasChange {
-		_, response, err := schematicsClient.ReplaceInventoryWithContext(context, updateInventoryOptions)
+		_, response, err := schematicsClient.ReplaceInventoryWithContext(context.TODO(), updateInventoryOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateInventoryWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("UpdateInventoryWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("UpdateInventoryWithContext failed %s\n%s", err, response)
 		}
 	}
 
-	return resourceIBMSchematicsInventoryRead(context, d, meta)
+	return resourceIBMSchematicsInventoryRead(d, meta)
 }
 
-func resourceIBMSchematicsInventoryDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsInventoryDelete(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteInventoryOptions := &schematicsv1.DeleteInventoryOptions{}
 
 	deleteInventoryOptions.SetInventoryID(d.Id())
 
-	response, err := schematicsClient.DeleteInventoryWithContext(context, deleteInventoryOptions)
+	response, err := schematicsClient.DeleteInventoryWithContext(context.TODO(), deleteInventoryOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteInventoryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteInventoryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteInventoryWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

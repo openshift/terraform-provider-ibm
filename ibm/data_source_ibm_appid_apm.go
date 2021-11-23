@@ -2,15 +2,16 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDAPM() *schema.Resource {
 	return &schema.Resource{
 		Description: "AppID advanced password management configuration (available for graduated tier only)",
-		ReadContext: dataSourceIBMAppIDAPMRead,
+		Read:        dataSourceIBMAppIDAPMRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -98,28 +99,28 @@ func dataSourceIBMAppIDAPM() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDAPMRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDAPMRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	apm, resp, err := appIDClient.GetCloudDirectoryAdvancedPasswordManagementWithContext(ctx, &appid.GetCloudDirectoryAdvancedPasswordManagementOptions{
+	apm, resp, err := appIDClient.GetCloudDirectoryAdvancedPasswordManagementWithContext(context.TODO(), &appid.GetCloudDirectoryAdvancedPasswordManagementOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID APM configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID APM configuration: %s\n%s", err, resp)
 	}
 
 	if apm.AdvancedPasswordManagement != nil {
 		d.Set("enabled", *apm.AdvancedPasswordManagement.Enabled)
 
 		if err := d.Set("password_reuse", flattenAppIDAPMPasswordReuse(apm.AdvancedPasswordManagement.PasswordReuse)); err != nil {
-			return diag.Errorf("Failed setting AppID APM password_reuse: %s", err)
+			return fmt.Errorf("Failed setting AppID APM password_reuse: %s", err)
 		}
 
 		if apm.AdvancedPasswordManagement.PreventPasswordWithUsername != nil {
@@ -127,14 +128,14 @@ func dataSourceIBMAppIDAPMRead(ctx context.Context, d *schema.ResourceData, meta
 		}
 
 		if err := d.Set("password_expiration", flattenAppIDAPMPasswordExpiration(apm.AdvancedPasswordManagement.PasswordExpiration)); err != nil {
-			return diag.Errorf("Failed setting AppID APM password_expiration: %s", err)
+			return fmt.Errorf("Failed setting AppID APM password_expiration: %s", err)
 		}
 
 		if err := d.Set("lockout_policy", flattenAppIDAPMLockoutPolicy(apm.AdvancedPasswordManagement.LockOutPolicy)); err != nil {
-			return diag.Errorf("Failed setting AppID APM lockout_policy: %s", err)
+			return fmt.Errorf("Failed setting AppID APM lockout_policy: %s", err)
 		}
 		if err := d.Set("min_password_change_interval", flattenAppIDAPMPasswordChangeInterval(apm.AdvancedPasswordManagement.MinPasswordChangeInterval)); err != nil {
-			return diag.Errorf("Failed setting AppID APM min_password_change_interval: %s", err)
+			return fmt.Errorf("Failed setting AppID APM min_password_change_interval: %s", err)
 		}
 
 	}

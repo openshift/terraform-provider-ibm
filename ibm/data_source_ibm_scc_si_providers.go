@@ -9,8 +9,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/scc-go-sdk/findingsv1"
@@ -18,7 +17,7 @@ import (
 
 func dataSourceIBMSccSiProviders() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccSiProvidersRead,
+		Read: dataSourceIBMSccSiProvidersRead,
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -64,15 +63,15 @@ func dataSourceIBMSccSiProviders() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccSiProvidersRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccSiProvidersRead(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := d.Get("account_id").(string)
@@ -92,10 +91,10 @@ func dataSourceIBMSccSiProvidersRead(context context.Context, d *schema.Resource
 		listProvidersOptions.SetLimit(int64(limit.(int)))
 	}
 
-	apiProviders, totalCount, err := collectAllProviders(findingsClient, context, listProvidersOptions)
+	apiProviders, totalCount, err := collectAllProviders(findingsClient, context.TODO(), listProvidersOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListProvidersWithContext failed %s", err)
-		return diag.FromErr(fmt.Errorf("ListProvidersWithContext failed %s", err))
+		return fmt.Errorf("ListProvidersWithContext failed %s", err)
 	}
 
 	d.SetId(dataSourceIBMSccSiProvidersID(d))
@@ -103,11 +102,11 @@ func dataSourceIBMSccSiProvidersRead(context context.Context, d *schema.Resource
 	if apiProviders != nil {
 		err = d.Set("providers", dataSourceAPIListProvidersResponseFlattenProviders(apiProviders))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting providers %s", err))
+			return fmt.Errorf("Error setting providers %s", err)
 		}
 	}
 	if err = d.Set("total_count", intValue(totalCount)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting total_count: %s", err))
+		return fmt.Errorf("Error setting total_count: %s", err)
 	}
 
 	return nil
@@ -123,7 +122,7 @@ func collectAllProviders(findingsClient *findingsv1.FindingsV1, ctx context.Cont
 	totalCount := core.Int64Ptr(0)
 
 	for {
-		apiListProvidersResponse, response, err := findingsClient.ListProvidersWithContext(ctx, options)
+		apiListProvidersResponse, response, err := findingsClient.ListProvidersWithContext(context.TODO(), options)
 		if err != nil {
 			return nil, core.Int64Ptr(0), fmt.Errorf("%s\n%s", err, response)
 		}

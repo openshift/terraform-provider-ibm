@@ -9,8 +9,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/scc-go-sdk/findingsv1"
 )
@@ -25,7 +24,7 @@ func ValidatePageSize(val interface{}, key string) (warns []string, errs []error
 
 func dataSourceIBMSccSiNotes() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccSiNotesRead,
+		Read: dataSourceIBMSccSiNotesRead,
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -360,14 +359,14 @@ func dataSourceIBMSccSiNotesValidator() *ResourceValidator {
 	return &ibmSccSiNotesDataSourceValidator
 }
 
-func dataSourceIBMSccSiNotesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccSiNotesRead(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := d.Get("account_id").(string)
@@ -391,16 +390,16 @@ func dataSourceIBMSccSiNotesRead(context context.Context, d *schema.ResourceData
 	apiNotes := []findingsv1.APINote{}
 
 	if listNoteOptions.PageToken != nil {
-		apiNotes, err = collectSpecificNotes(findingsClient, context, listNoteOptions)
+		apiNotes, err = collectSpecificNotes(findingsClient, context.TODO(), listNoteOptions)
 		if err != nil {
 			log.Printf("[DEBUG] GetNoteWithContext failed %s", err)
-			return diag.FromErr(fmt.Errorf("GetNoteWithContext failed %s", err))
+			return fmt.Errorf("GetNoteWithContext failed %s", err)
 		}
 	} else {
-		apiNotes, err = collectAllNotes(findingsClient, context, listNoteOptions)
+		apiNotes, err = collectAllNotes(findingsClient, context.TODO(), listNoteOptions)
 		if err != nil {
 			log.Printf("[DEBUG] GetNoteWithContext failed %s", err)
-			return diag.FromErr(fmt.Errorf("GetNoteWithContext failed %s", err))
+			return fmt.Errorf("GetNoteWithContext failed %s", err)
 		}
 	}
 
@@ -409,7 +408,7 @@ func dataSourceIBMSccSiNotesRead(context context.Context, d *schema.ResourceData
 	if apiNotes != nil {
 		err = d.Set("notes", dataSourceAPIListNotesResponseFlattenProviders(apiNotes))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting notes %s", err))
+			return fmt.Errorf("Error setting notes %s", err)
 		}
 	}
 
@@ -422,7 +421,7 @@ func dataSourceIBMSccSiNotesID(d *schema.ResourceData) string {
 }
 
 func collectSpecificNotes(findingsClient *findingsv1.FindingsV1, ctx context.Context, options *findingsv1.ListNotesOptions) ([]findingsv1.APINote, error) {
-	apiListNotesResponse, response, err := findingsClient.ListNotesWithContext(ctx, options)
+	apiListNotesResponse, response, err := findingsClient.ListNotesWithContext(context.TODO(), options)
 	if err != nil {
 		return nil, fmt.Errorf("%s\n%s", err, response)
 	}
@@ -434,7 +433,7 @@ func collectAllNotes(findingsClient *findingsv1.FindingsV1, ctx context.Context,
 	finalList := []findingsv1.APINote{}
 
 	for {
-		apiListNotesResponse, response, err := findingsClient.ListNotesWithContext(ctx, options)
+		apiListNotesResponse, response, err := findingsClient.ListNotesWithContext(context.TODO(), options)
 		if err != nil {
 			return nil, fmt.Errorf("%s\n%s", err, response)
 		}

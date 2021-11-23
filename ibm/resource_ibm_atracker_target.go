@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/platform-services-go-sdk/atrackerv1"
@@ -17,11 +16,11 @@ import (
 
 func resourceIBMAtrackerTarget() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAtrackerTargetCreate,
-		ReadContext:   resourceIBMAtrackerTargetRead,
-		UpdateContext: resourceIBMAtrackerTargetUpdate,
-		DeleteContext: resourceIBMAtrackerTargetDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMAtrackerTargetCreate,
+		Read:     resourceIBMAtrackerTargetRead,
+		Update:   resourceIBMAtrackerTargetUpdate,
+		Delete:   resourceIBMAtrackerTargetDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -143,10 +142,10 @@ func resourceIBMAtrackerTargetValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMAtrackerTargetCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerTargetCreate(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createTargetOptions := &atrackerv1.CreateTargetOptions{}
@@ -156,15 +155,15 @@ func resourceIBMAtrackerTargetCreate(context context.Context, d *schema.Resource
 	cosEndpoint := resourceIBMAtrackerTargetMapToCosEndpoint(d.Get("cos_endpoint.0").(map[string]interface{}))
 	createTargetOptions.SetCosEndpoint(&cosEndpoint)
 
-	target, response, err := atrackerClient.CreateTargetWithContext(context, createTargetOptions)
+	target, response, err := atrackerClient.CreateTargetWithContext(context.TODO(), createTargetOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateTargetWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateTargetWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateTargetWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*target.ID)
 
-	return resourceIBMAtrackerTargetRead(context, d, meta)
+	return resourceIBMAtrackerTargetRead(d, meta)
 }
 
 func resourceIBMAtrackerTargetMapToCosEndpoint(cosEndpointMap map[string]interface{}) atrackerv1.CosEndpoint {
@@ -178,53 +177,53 @@ func resourceIBMAtrackerTargetMapToCosEndpoint(cosEndpointMap map[string]interfa
 	return cosEndpoint
 }
 
-func resourceIBMAtrackerTargetRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerTargetRead(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getTargetOptions := &atrackerv1.GetTargetOptions{}
 
 	getTargetOptions.SetID(d.Id())
 
-	target, response, err := atrackerClient.GetTargetWithContext(context, getTargetOptions)
+	target, response, err := atrackerClient.GetTargetWithContext(context.TODO(), getTargetOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetTargetWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetTargetWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetTargetWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("name", target.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("target_type", target.TargetType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting target_type: %s", err))
+		return fmt.Errorf("Error setting target_type: %s", err)
 	}
 	cosEndpointMap := resourceIBMAtrackerTargetCosEndpointToMap(*target.CosEndpoint)
 	if err = d.Set("cos_endpoint", []map[string]interface{}{cosEndpointMap}); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting cos_endpoint: %s", err))
+		return fmt.Errorf("Error setting cos_endpoint: %s", err)
 	}
 	if err = d.Set("crn", target.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("encrypt_key", target.EncryptKey); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting encrypt_key: %s", err))
+		return fmt.Errorf("Error setting encrypt_key: %s", err)
 	}
 	if target.CosWriteStatus != nil {
 		cosWriteStatusMap := resourceIBMAtrackerTargetCosWriteStatusToMap(*target.CosWriteStatus)
 		if err = d.Set("cos_write_status", []map[string]interface{}{cosWriteStatusMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting cos_write_status: %s", err))
+			return fmt.Errorf("Error setting cos_write_status: %s", err)
 		}
 	}
 	if err = d.Set("created", dateTimeToString(target.Created)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created: %s", err))
+		return fmt.Errorf("Error setting created: %s", err)
 	}
 	if err = d.Set("updated", dateTimeToString(target.Updated)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated: %s", err))
+		return fmt.Errorf("Error setting updated: %s", err)
 	}
 
 	return nil
@@ -257,10 +256,10 @@ func resourceIBMAtrackerTargetCosWriteStatusToMap(cosWriteStatus atrackerv1.CosW
 	return cosWriteStatusMap
 }
 
-func resourceIBMAtrackerTargetUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerTargetUpdate(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	replaceTargetOptions := &atrackerv1.ReplaceTargetOptions{}
@@ -278,30 +277,30 @@ func resourceIBMAtrackerTargetUpdate(context context.Context, d *schema.Resource
 	}
 
 	if hasChange {
-		_, response, err := atrackerClient.ReplaceTargetWithContext(context, replaceTargetOptions)
+		_, response, err := atrackerClient.ReplaceTargetWithContext(context.TODO(), replaceTargetOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ReplaceTargetWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("ReplaceTargetWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ReplaceTargetWithContext failed %s\n%s", err, response)
 		}
 	}
 
-	return resourceIBMAtrackerTargetRead(context, d, meta)
+	return resourceIBMAtrackerTargetRead(d, meta)
 }
 
-func resourceIBMAtrackerTargetDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAtrackerTargetDelete(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteTargetOptions := &atrackerv1.DeleteTargetOptions{}
 
 	deleteTargetOptions.SetID(d.Id())
 
-	_, response, err := atrackerClient.DeleteTargetWithContext(context, deleteTargetOptions)
+	_, response, err := atrackerClient.DeleteTargetWithContext(context.TODO(), deleteTargetOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteTargetWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteTargetWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteTargetWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

@@ -4,22 +4,21 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"log"
 	"strings"
 )
 
 func resourceIBMAppIDActionURL() *schema.Resource {
 	return &schema.Resource{
-		Description:   "The custom url to redirect to when Cloud Directory action is executed.",
-		CreateContext: resourceIBMAppIDActionURLCreate,
-		ReadContext:   resourceIBMAppIDActionURLRead,
-		DeleteContext: resourceIBMAppIDActionURLDelete,
-		UpdateContext: resourceIBMAppIDActionURLUpdate,
+		Description: "The custom url to redirect to when Cloud Directory action is executed.",
+		Create:      resourceIBMAppIDActionURLCreate,
+		Read:        resourceIBMAppIDActionURLRead,
+		Delete:      resourceIBMAppIDActionURLDelete,
+		Update:      resourceIBMAppIDActionURLUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -44,24 +43,24 @@ func resourceIBMAppIDActionURL() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDActionURLRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDActionURLRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
 	idParts := strings.Split(id, "/")
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: AppID action URL ID should be a combination of tenantID/action", id)
+		return fmt.Errorf("Incorrect ID %s: AppID action URL ID should be a combination of tenantID/action", id)
 	}
 
 	tenantID := idParts[0]
 	action := idParts[1]
 
-	cfg, resp, err := appIDClient.GetCloudDirectoryActionURLWithContext(ctx, &appid.GetCloudDirectoryActionURLOptions{
+	cfg, resp, err := appIDClient.GetCloudDirectoryActionURLWithContext(context.TODO(), &appid.GetCloudDirectoryActionURLOptions{
 		TenantID: &tenantID,
 		Action:   &action,
 	})
@@ -73,7 +72,7 @@ func resourceIBMAppIDActionURLRead(ctx context.Context, d *schema.ResourceData, 
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID actionURL: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID actionURL: %s\n%s", err, resp)
 	}
 
 	if cfg.ActionURL != nil {
@@ -86,11 +85,11 @@ func resourceIBMAppIDActionURLRead(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func resourceIBMAppIDActionURLCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDActionURLCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -103,34 +102,34 @@ func resourceIBMAppIDActionURLCreate(ctx context.Context, d *schema.ResourceData
 		ActionURL: &actionURL,
 	}
 
-	_, resp, err := appIDClient.SetCloudDirectoryActionWithContext(ctx, input)
+	_, resp, err := appIDClient.SetCloudDirectoryActionWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error setting AppID Cloud Directory action URL: %s\n%s", err, resp)
+		return fmt.Errorf("Error setting AppID Cloud Directory action URL: %s\n%s", err, resp)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, action))
 
-	return resourceIBMAppIDActionURLRead(ctx, d, meta)
+	return resourceIBMAppIDActionURLRead(d, meta)
 }
 
-func resourceIBMAppIDActionURLDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDActionURLDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	action := d.Get("action").(string)
 
-	resp, err := appIDClient.DeleteActionURLWithContext(ctx, &appid.DeleteActionURLOptions{
+	resp, err := appIDClient.DeleteActionURLWithContext(context.TODO(), &appid.DeleteActionURLOptions{
 		TenantID: &tenantID,
 		Action:   &action,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error deleting AppID Cloud Directory action URL: %s\n%s", err, resp)
+		return fmt.Errorf("Error deleting AppID Cloud Directory action URL: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
@@ -138,6 +137,6 @@ func resourceIBMAppIDActionURLDelete(ctx context.Context, d *schema.ResourceData
 	return nil
 }
 
-func resourceIBMAppIDActionURLUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	return resourceIBMAppIDActionURLCreate(ctx, d, m)
+func resourceIBMAppIDActionURLUpdate(d *schema.ResourceData, m interface{}) error {
+	return resourceIBMAppIDActionURLCreate(d, m)
 }

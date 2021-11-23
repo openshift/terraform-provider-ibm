@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/atrackerv1"
 )
 
 func dataSourceIBMAtrackerRoutes() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAtrackerRoutesRead,
+		Read: dataSourceIBMAtrackerRoutesRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -90,18 +89,18 @@ func dataSourceIBMAtrackerRoutes() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAtrackerRoutesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAtrackerRoutesRead(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listRoutesOptions := &atrackerv1.ListRoutesOptions{}
 
-	routeList, response, err := atrackerClient.ListRoutesWithContext(context, listRoutesOptions)
+	routeList, response, err := atrackerClient.ListRoutesWithContext(context.TODO(), listRoutesOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListRoutesWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ListRoutesWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ListRoutesWithContext failed %s\n%s", err, response)
 	}
 
 	// Use the provided filter argument and construct a new list with only the requested resource(s)
@@ -124,7 +123,7 @@ func dataSourceIBMAtrackerRoutesRead(context context.Context, d *schema.Resource
 
 	if suppliedFilter {
 		if len(routeList.Routes) == 0 {
-			return diag.FromErr(fmt.Errorf("no Routes found with name %s", name))
+			return fmt.Errorf("no Routes found with name %s", name)
 		}
 		d.SetId(name)
 	} else {
@@ -134,7 +133,7 @@ func dataSourceIBMAtrackerRoutesRead(context context.Context, d *schema.Resource
 	if routeList.Routes != nil {
 		err = d.Set("routes", dataSourceRouteListFlattenRoutes(routeList.Routes))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting routes %s", err))
+			return fmt.Errorf("Error setting routes %s", err)
 		}
 	}
 

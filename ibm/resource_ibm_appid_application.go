@@ -4,21 +4,20 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"log"
 	"strings"
 )
 
 func resourceIBMAppIDApplication() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDApplicationCreate,
-		ReadContext:   resourceIBMAppIDApplicationRead,
-		DeleteContext: resourceIBMAppIDApplicationDelete,
-		UpdateContext: resourceIBMAppIDApplicationUpdate,
+		Create: resourceIBMAppIDApplicationCreate,
+		Read:   resourceIBMAppIDApplicationRead,
+		Delete: resourceIBMAppIDApplicationDelete,
+		Update: resourceIBMAppIDApplicationUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -70,11 +69,11 @@ func resourceIBMAppIDApplication() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDApplicationCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -87,35 +86,35 @@ func resourceIBMAppIDApplicationCreate(ctx context.Context, d *schema.ResourceDa
 		Type:     &appType,
 	}
 
-	app, resp, err := appIDClient.RegisterApplicationWithContext(ctx, input)
+	app, resp, err := appIDClient.RegisterApplicationWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error creating AppID application: %s\n%s", err, resp)
+		return fmt.Errorf("Error creating AppID application: %s\n%s", err, resp)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, *app.ClientID))
 
-	return resourceIBMAppIDApplicationRead(ctx, d, meta)
+	return resourceIBMAppIDApplicationRead(d, meta)
 }
 
-func resourceIBMAppIDApplicationRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
 	idParts := strings.Split(id, "/")
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/clientID", d.Id())
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/clientID", d.Id())
 	}
 
 	tenantID := idParts[0]
 	clientID := idParts[1]
 
-	app, resp, err := appIDClient.GetApplicationWithContext(ctx, &appid.GetApplicationOptions{
+	app, resp, err := appIDClient.GetApplicationWithContext(context.TODO(), &appid.GetApplicationOptions{
 		TenantID: &tenantID,
 		ClientID: &clientID,
 	})
@@ -127,7 +126,7 @@ func resourceIBMAppIDApplicationRead(ctx context.Context, d *schema.ResourceData
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID application: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID application: %s\n%s", err, resp)
 	}
 
 	if app.Name != nil {
@@ -160,49 +159,49 @@ func resourceIBMAppIDApplicationRead(ctx context.Context, d *schema.ResourceData
 	return nil
 }
 
-func resourceIBMAppIDApplicationUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("name") {
 		appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 		tenantID := d.Get("tenant_id").(string)
 		appName := d.Get("name").(string)
 		clientID := d.Get("client_id").(string)
 
-		_, resp, err := appIDClient.UpdateApplicationWithContext(ctx, &appid.UpdateApplicationOptions{
+		_, resp, err := appIDClient.UpdateApplicationWithContext(context.TODO(), &appid.UpdateApplicationOptions{
 			TenantID: &tenantID,
 			Name:     &appName,
 			ClientID: &clientID,
 		})
 
 		if err != nil {
-			return diag.Errorf("Error updating AppID application: %s\n%s", err, resp)
+			return fmt.Errorf("Error updating AppID application: %s\n%s", err, resp)
 		}
 	}
 
-	return resourceIBMAppIDApplicationRead(ctx, d, meta)
+	return resourceIBMAppIDApplicationRead(d, meta)
 }
 
-func resourceIBMAppIDApplicationDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	clientID := d.Get("client_id").(string)
 
-	resp, err := appIDClient.DeleteApplicationWithContext(ctx, &appid.DeleteApplicationOptions{
+	resp, err := appIDClient.DeleteApplicationWithContext(context.TODO(), &appid.DeleteApplicationOptions{
 		TenantID: &tenantID,
 		ClientID: &clientID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error deleting AppID application: %s\n%s", err, resp)
+		return fmt.Errorf("Error deleting AppID application: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

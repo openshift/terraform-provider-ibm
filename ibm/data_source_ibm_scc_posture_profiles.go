@@ -12,8 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/scc-go-sdk/posturemanagementv1"
@@ -21,7 +20,7 @@ import (
 
 func dataSourceIBMSccPostureProfiles() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccPostureProfilesRead,
+		Read: dataSourceIBMSccPostureProfilesRead,
 
 		Schema: map[string]*schema.Schema{
 			"profile_id": &schema.Schema{
@@ -275,10 +274,10 @@ func dataSourceIBMSccPostureProfiles() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccPostureProfilesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccPostureProfilesRead(d *schema.ResourceData, meta interface{}) error {
 	postureManagementClient, err := meta.(ClientSession).PostureManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listProfilesOptions := &posturemanagementv1.ListProfilesOptions{}
@@ -298,11 +297,11 @@ func dataSourceIBMSccPostureProfilesRead(context context.Context, d *schema.Reso
 		listProfilesOptions.Offset = &offset
 
 		listProfilesOptions.Limit = core.Int64Ptr(int64(100))
-		result, response, err := postureManagementClient.ListProfilesWithContext(context, listProfilesOptions)
+		result, response, err := postureManagementClient.ListProfilesWithContext(context.TODO(), listProfilesOptions)
 		profilesList = result
 		if err != nil {
 			log.Printf("[DEBUG] ListProfilesWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("ListProfilesWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ListProfilesWithContext failed %s\n%s", err, response)
 		}
 		offset = dataSourceProfilesListGetNext(result.Next)
 		if suppliedFilter {
@@ -323,7 +322,7 @@ func dataSourceIBMSccPostureProfilesRead(context context.Context, d *schema.Reso
 
 	if suppliedFilter {
 		if len(profilesList.Profiles) == 0 {
-			return diag.FromErr(fmt.Errorf("no Profiles found with profileID %s", profileID))
+			return fmt.Errorf("no Profiles found with profileID %s", profileID)
 		}
 		d.SetId(profileID)
 	} else {
@@ -333,28 +332,28 @@ func dataSourceIBMSccPostureProfilesRead(context context.Context, d *schema.Reso
 	if profilesList.First != nil {
 		err = d.Set("first", dataSourceProfilesListFlattenFirst(*profilesList.First))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting first %s", err))
+			return fmt.Errorf("Error setting first %s", err)
 		}
 	}
 
 	if profilesList.Last != nil {
 		err = d.Set("last", dataSourceProfilesListFlattenLast(*profilesList.Last))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting last %s", err))
+			return fmt.Errorf("Error setting last %s", err)
 		}
 	}
 
 	if profilesList.Previous != nil {
 		err = d.Set("previous", dataSourceProfilesListFlattenPrevious(*profilesList.Previous))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting previous %s", err))
+			return fmt.Errorf("Error setting previous %s", err)
 		}
 	}
 
 	if profilesList.Profiles != nil {
 		err = d.Set("profiles", dataSourceProfilesListFlattenProfiles(profilesList.Profiles))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting profiles %s", err))
+			return fmt.Errorf("Error setting profiles %s", err)
 		}
 	}
 

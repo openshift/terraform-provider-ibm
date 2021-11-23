@@ -4,17 +4,15 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMCISFirewallRules() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMCISFirewallRulesRead,
+		Read: dataSourceIBMCISFirewallRulesRead,
 
 		Schema: map[string]*schema.Schema{
 			cisID: {
@@ -65,23 +63,23 @@ func dataSourceIBMCISFirewallRules() *schema.Resource {
 	}
 }
 
-func dataSourceIBMCISFirewallRulesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMCISFirewallRulesRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	xAuthtoken := sess.Config.IAMAccessToken
 
 	cisClient, err := meta.(ClientSession).CisFirewallRulesSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	crn := d.Get(cisID).(string)
 	zoneID, _, _ := convertTftoCisTwoVar(d.Get(cisDomainID).(string))
 
 	result, resp, err := cisClient.ListAllFirewallRules(cisClient.NewListAllFirewallRulesOptions(xAuthtoken, crn, zoneID))
 	if err != nil || result == nil {
-		return diag.FromErr(fmt.Errorf("Error listing the  firewall rules %s:%s", err, resp))
+		return fmt.Errorf("Error listing the  firewall rules %s:%s", err, resp)
 	}
 
 	fwrList := make([]map[string]interface{}, 0)

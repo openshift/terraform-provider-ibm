@@ -9,19 +9,18 @@ import (
 	"log"
 
 	"github.com/IBM-Cloud/container-services-go-sdk/satellitelinkv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 )
 
 func resourceIbmSatelliteEndpoint() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmSatelliteEndpointCreate,
-		ReadContext:   resourceIbmSatelliteEndpointRead,
-		UpdateContext: resourceIbmSatelliteEndpointUpdate,
-		DeleteContext: resourceIbmSatelliteEndpointDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmSatelliteEndpointCreate,
+		Read:     resourceIbmSatelliteEndpointRead,
+		Update:   resourceIbmSatelliteEndpointUpdate,
+		Delete:   resourceIbmSatelliteEndpointDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"location": &schema.Schema{
@@ -389,10 +388,10 @@ func resourceIbmSatelliteEndpointValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIbmSatelliteEndpointCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteEndpointCreate(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createEndpointsOptions := &satellitelinkv1.CreateEndpointsOptions{}
@@ -439,15 +438,15 @@ func resourceIbmSatelliteEndpointCreate(context context.Context, d *schema.Resou
 		createEndpointsOptions.SetCerts(&certs)
 	}
 
-	endpoint, response, err := satelliteLinkClient.CreateEndpointsWithContext(context, createEndpointsOptions)
+	endpoint, response, err := satelliteLinkClient.CreateEndpointsWithContext(context.TODO(), createEndpointsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateEndpointsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateEndpointsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateEndpointsWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", *createEndpointsOptions.LocationID, *endpoint.EndpointID))
 
-	return resourceIbmSatelliteEndpointRead(context, d, meta)
+	return resourceIbmSatelliteEndpointRead(d, meta)
 }
 
 func resourceIbmSatelliteEndpointMapToAdditionalNewEndpointRequestCerts(additionalNewEndpointRequestCertsMap map[string]interface{}) satellitelinkv1.AdditionalNewEndpointRequestCerts {
@@ -572,29 +571,29 @@ func resourceIbmSatelliteEndpointMapToAdditionalNewEndpointRequestCertsConnector
 	return additionalNewEndpointRequestCertsConnectorKey
 }
 
-func resourceIbmSatelliteEndpointRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteEndpointRead(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getEndpointsOptions := &satellitelinkv1.GetEndpointsOptions{}
 	getEndpointsOptions.SetLocationID(parts[0])
 	getEndpointsOptions.SetEndpointID(parts[1])
 
-	endpoint, response, err := satelliteLinkClient.GetEndpointsWithContext(context, getEndpointsOptions)
+	endpoint, response, err := satelliteLinkClient.GetEndpointsWithContext(context.TODO(), getEndpointsOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] ListEndpointsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("ListEndpointsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("ListEndpointsWithContext failed %s\n%s", err, response)
 	}
 
 	if endpoint.EndpointID != nil {
@@ -602,43 +601,43 @@ func resourceIbmSatelliteEndpointRead(context context.Context, d *schema.Resourc
 	}
 
 	if err = d.Set("location", endpoint.LocationID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting location: %s", err))
+		return fmt.Errorf("Error setting location: %s", err)
 	}
 	if err = d.Set("connection_type", endpoint.ConnType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting connection_type: %s", err))
+		return fmt.Errorf("Error setting connection_type: %s", err)
 	}
 	if err = d.Set("display_name", endpoint.DisplayName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting display_name: %s", err))
+		return fmt.Errorf("Error setting display_name: %s", err)
 	}
 	if err = d.Set("server_host", endpoint.ServerHost); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_host: %s", err))
+		return fmt.Errorf("Error setting server_host: %s", err)
 	}
 	if err = d.Set("server_port", intValue(endpoint.ServerPort)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_port: %s", err))
+		return fmt.Errorf("Error setting server_port: %s", err)
 	}
 	if err = d.Set("sni", endpoint.Sni); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting sni: %s", err))
+		return fmt.Errorf("Error setting sni: %s", err)
 	}
 	if err = d.Set("client_protocol", endpoint.ClientProtocol); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_protocol: %s", err))
+		return fmt.Errorf("Error setting client_protocol: %s", err)
 	}
 	if err = d.Set("client_mutual_auth", endpoint.ClientMutualAuth); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_mutual_auth: %s", err))
+		return fmt.Errorf("Error setting client_mutual_auth: %s", err)
 	}
 	if err = d.Set("server_protocol", endpoint.ServerProtocol); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_protocol: %s", err))
+		return fmt.Errorf("Error setting server_protocol: %s", err)
 	}
 	if err = d.Set("server_mutual_auth", endpoint.ServerMutualAuth); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_mutual_auth: %s", err))
+		return fmt.Errorf("Error setting server_mutual_auth: %s", err)
 	}
 	if err = d.Set("reject_unauth", endpoint.RejectUnauth); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting reject_unauth: %s", err))
+		return fmt.Errorf("Error setting reject_unauth: %s", err)
 	}
 	if err = d.Set("timeout", intValue(endpoint.Timeout)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting timeout: %s", err))
+		return fmt.Errorf("Error setting timeout: %s", err)
 	}
 	if err = d.Set("created_by", endpoint.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 
 	if endpoint.Sources != nil {
@@ -648,37 +647,37 @@ func resourceIbmSatelliteEndpointRead(context context.Context, d *schema.Resourc
 			sources = append(sources, sourcesItemMap)
 		}
 		if err = d.Set("sources", sources); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting sources: %s", err))
+			return fmt.Errorf("Error setting sources: %s", err)
 		}
 	}
 	if err = d.Set("connector_port", intValue(endpoint.ConnectorPort)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting connector_port: %s", err))
+		return fmt.Errorf("Error setting connector_port: %s", err)
 	}
 	if err = d.Set("crn", endpoint.Crn); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("service_name", endpoint.ServiceName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting service_name: %s", err))
+		return fmt.Errorf("Error setting service_name: %s", err)
 	}
 	if err = d.Set("client_host", endpoint.ClientHost); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_host: %s", err))
+		return fmt.Errorf("Error setting client_host: %s", err)
 	}
 	if err = d.Set("client_port", intValue(endpoint.ClientPort)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting client_port: %s", err))
+		return fmt.Errorf("Error setting client_port: %s", err)
 	}
 	if err = d.Set("status", endpoint.Status); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting status: %s", err))
+		return fmt.Errorf("Error setting status: %s", err)
 	}
 	if err = d.Set("created_at", endpoint.CreatedAt); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("last_change", endpoint.LastChange); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting last_change: %s", err))
+		return fmt.Errorf("Error setting last_change: %s", err)
 	}
 	if endpoint.Performance != nil {
 		performanceMap := resourceIbmSatelliteEndpointEndpointPerformanceToMap(*endpoint.Performance)
 		if err = d.Set("performance", []map[string]interface{}{performanceMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting performance: %s", err))
+			return fmt.Errorf("Error setting performance: %s", err)
 		}
 	}
 
@@ -818,17 +817,17 @@ func resourceIbmSatelliteEndpointEndpointPerformanceConnectorsItemToMap(endpoint
 	return endpointPerformanceConnectorsItemMap
 }
 
-func resourceIbmSatelliteEndpointUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteEndpointUpdate(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateEndpointsOptions := &satellitelinkv1.UpdateEndpointsOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateEndpointsOptions.SetLocationID(parts[0])
@@ -891,14 +890,14 @@ func resourceIbmSatelliteEndpointUpdate(context context.Context, d *schema.Resou
 	}
 
 	if hasChange {
-		_, response, err := satelliteLinkClient.UpdateEndpointsWithContext(context, updateEndpointsOptions)
+		_, response, err := satelliteLinkClient.UpdateEndpointsWithContext(context.TODO(), updateEndpointsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateEndpointsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("UpdateEndpointsWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("UpdateEndpointsWithContext failed %s\n%s", err, response)
 		}
 	}
 
-	return resourceIbmSatelliteEndpointRead(context, d, meta)
+	return resourceIbmSatelliteEndpointRead(d, meta)
 }
 
 func resourceIbmSatelliteEndpointUpdateEndpointRequestCerts(udateEndpointRequestCertsMap map[string]interface{}) satellitelinkv1.UpdatedEndpointRequestCerts {
@@ -1004,26 +1003,26 @@ func resourceIbmSatelliteEndpointMapToUpdateEndpointRequestCertsConnectorCert(up
 	return updateEndpointRequestCertsConnectorCert
 }
 
-func resourceIbmSatelliteEndpointDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteEndpointDelete(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteEndpointsOptions := &satellitelinkv1.DeleteEndpointsOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteEndpointsOptions.SetLocationID(parts[0])
 	deleteEndpointsOptions.SetEndpointID(parts[1])
 
-	_, response, err := satelliteLinkClient.DeleteEndpointsWithContext(context, deleteEndpointsOptions)
+	_, response, err := satelliteLinkClient.DeleteEndpointsWithContext(context.TODO(), deleteEndpointsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteEndpointsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteEndpointsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteEndpointsWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

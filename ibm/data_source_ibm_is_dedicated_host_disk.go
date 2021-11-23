@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsDedicatedHostDisk() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsDedicatedHostDiskRead,
+		Read: dataSourceIbmIsDedicatedHostDiskRead,
 
 		Schema: map[string]*schema.Schema{
 			"dedicated_host": &schema.Schema{
@@ -129,10 +128,10 @@ func dataSourceIbmIsDedicatedHostDisk() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsDedicatedHostDiskRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsDedicatedHostDiskRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getDedicatedHostDiskOptions := &vpcv1.GetDedicatedHostDiskOptions{}
@@ -140,51 +139,51 @@ func dataSourceIbmIsDedicatedHostDiskRead(context context.Context, d *schema.Res
 	getDedicatedHostDiskOptions.SetDedicatedHostID(d.Get("dedicated_host").(string))
 	getDedicatedHostDiskOptions.SetID(d.Get("disk").(string))
 
-	dedicatedHostDisk, response, err := vpcClient.GetDedicatedHostDiskWithContext(context, getDedicatedHostDiskOptions)
+	dedicatedHostDisk, response, err := vpcClient.GetDedicatedHostDiskWithContext(context.TODO(), getDedicatedHostDiskOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetDedicatedHostDiskWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*dedicatedHostDisk.ID)
 	if err = d.Set("available", dedicatedHostDisk.Available); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting available: %s", err))
+		return fmt.Errorf("Error setting available: %s", err)
 	}
 	if err = d.Set("created_at", dedicatedHostDisk.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("href", dedicatedHostDisk.Href); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+		return fmt.Errorf("Error setting href: %s", err)
 	}
 
 	if dedicatedHostDisk.InstanceDisks != nil {
 		err = d.Set("instance_disks", dataSourceDedicatedHostDiskFlattenInstanceDisks(dedicatedHostDisk.InstanceDisks))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting instance_disks %s", err))
+			return fmt.Errorf("Error setting instance_disks %s", err)
 		}
 	}
 	if err = d.Set("interface_type", dedicatedHostDisk.InterfaceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting interface_type: %s", err))
+		return fmt.Errorf("Error setting interface_type: %s", err)
 	}
 	if dedicatedHostDisk.LifecycleState != nil {
 		if err = d.Set("lifecycle_state", dedicatedHostDisk.LifecycleState); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting lifecycle_state: %s", err))
+			return fmt.Errorf("Error setting lifecycle_state: %s", err)
 		}
 	}
 	if err = d.Set("name", dedicatedHostDisk.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("provisionable", dedicatedHostDisk.Provisionable); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting provisionable: %s", err))
+		return fmt.Errorf("Error setting provisionable: %s", err)
 	}
 	if err = d.Set("resource_type", dedicatedHostDisk.ResourceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_type: %s", err))
+		return fmt.Errorf("Error setting resource_type: %s", err)
 	}
 	if err = d.Set("size", dedicatedHostDisk.Size); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting size: %s", err))
+		return fmt.Errorf("Error setting size: %s", err)
 	}
 	if err = d.Set("supported_instance_interface_types", dedicatedHostDisk.SupportedInstanceInterfaceTypes); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting supported_instance_interface_types: %s", err))
+		return fmt.Errorf("Error setting supported_instance_interface_types: %s", err)
 	}
 
 	return nil

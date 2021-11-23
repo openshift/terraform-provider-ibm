@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/vpc-go-sdk/vpcv1"
@@ -17,11 +16,11 @@ import (
 
 func resourceIbmIsDedicatedHostGroup() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmIsDedicatedHostGroupCreate,
-		ReadContext:   resourceIbmIsDedicatedHostGroupRead,
-		UpdateContext: resourceIbmIsDedicatedHostGroupUpdate,
-		DeleteContext: resourceIbmIsDedicatedHostGroupDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmIsDedicatedHostGroupCreate,
+		Read:     resourceIbmIsDedicatedHostGroupRead,
+		Update:   resourceIbmIsDedicatedHostGroupUpdate,
+		Delete:   resourceIbmIsDedicatedHostGroupDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"class": &schema.Schema{
@@ -173,10 +172,10 @@ func resourceIbmIsDedicatedHostGroupValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIbmIsDedicatedHostGroupCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostGroupCreate(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createDedicatedHostGroupOptions := &vpcv1.CreateDedicatedHostGroupOptions{}
@@ -205,15 +204,15 @@ func resourceIbmIsDedicatedHostGroupCreate(context context.Context, d *schema.Re
 		createDedicatedHostGroupOptions.SetZone(&zoneidentity)
 	}
 
-	dedicatedHostGroup, response, err := vpcClient.CreateDedicatedHostGroupWithContext(context, createDedicatedHostGroupOptions)
+	dedicatedHostGroup, response, err := vpcClient.CreateDedicatedHostGroupWithContext(context.TODO(), createDedicatedHostGroupOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateDedicatedHostGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*dedicatedHostGroup.ID)
 
-	return resourceIbmIsDedicatedHostGroupRead(context, d, meta)
+	return resourceIbmIsDedicatedHostGroupRead(d, meta)
 }
 
 func resourceIbmIsDedicatedHostGroupMapToResourceGroupIdentity(resourceGroupIdentityMap map[string]interface{}) vpcv1.ResourceGroupIdentity {
@@ -234,52 +233,52 @@ func resourceIbmIsDedicatedHostGroupMapToResourceGroupIdentityByID(resourceGroup
 	return resourceGroupIdentityByID
 }
 
-func resourceIbmIsDedicatedHostGroupRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostGroupRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getDedicatedHostGroupOptions := &vpcv1.GetDedicatedHostGroupOptions{}
 
 	getDedicatedHostGroupOptions.SetID(d.Id())
 
-	dedicatedHostGroup, response, err := vpcClient.GetDedicatedHostGroupWithContext(context, getDedicatedHostGroupOptions)
+	dedicatedHostGroup, response, err := vpcClient.GetDedicatedHostGroupWithContext(context.TODO(), getDedicatedHostGroupOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetDedicatedHostGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	if err = d.Set("class", dedicatedHostGroup.Class); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting class: %s", err))
+		return fmt.Errorf("Error setting class: %s", err)
 	}
 	if err = d.Set("family", dedicatedHostGroup.Family); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting family: %s", err))
+		return fmt.Errorf("Error setting family: %s", err)
 	}
 	if err = d.Set("name", dedicatedHostGroup.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if dedicatedHostGroup.ResourceGroup != nil {
 		resourceGroupID := *dedicatedHostGroup.ResourceGroup.ID
 		if err = d.Set("resource_group", resourceGroupID); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resource_group: %s", err))
+			return fmt.Errorf("Error setting resource_group: %s", err)
 		}
 	}
 	if dedicatedHostGroup.Zone != nil {
 		zoneName := *dedicatedHostGroup.Zone.Name
 		if err = d.Set("zone", zoneName); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting zone: %s", err))
+			return fmt.Errorf("Error setting zone: %s", err)
 		}
 	}
 	if err = d.Set("created_at", dedicatedHostGroup.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("crn", dedicatedHostGroup.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	dedicatedHosts := []map[string]interface{}{}
 	for _, dedicatedHostsItem := range dedicatedHostGroup.DedicatedHosts {
@@ -287,13 +286,13 @@ func resourceIbmIsDedicatedHostGroupRead(context context.Context, d *schema.Reso
 		dedicatedHosts = append(dedicatedHosts, dedicatedHostsItemMap)
 	}
 	if err = d.Set("dedicated_hosts", dedicatedHosts); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting dedicated_hosts: %s", err))
+		return fmt.Errorf("Error setting dedicated_hosts: %s", err)
 	}
 	if err = d.Set("href", dedicatedHostGroup.Href); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+		return fmt.Errorf("Error setting href: %s", err)
 	}
 	if err = d.Set("resource_type", dedicatedHostGroup.ResourceType); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_type: %s", err))
+		return fmt.Errorf("Error setting resource_type: %s", err)
 	}
 	supportedInstanceProfiles := []map[string]interface{}{}
 	for _, supportedInstanceProfilesItem := range dedicatedHostGroup.SupportedInstanceProfiles {
@@ -301,7 +300,7 @@ func resourceIbmIsDedicatedHostGroupRead(context context.Context, d *schema.Reso
 		supportedInstanceProfiles = append(supportedInstanceProfiles, supportedInstanceProfilesItemMap)
 	}
 	if err = d.Set("supported_instance_profiles", supportedInstanceProfiles); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting supported_instance_profiles: %s", err))
+		return fmt.Errorf("Error setting supported_instance_profiles: %s", err)
 	}
 
 	return nil
@@ -381,10 +380,10 @@ func resourceIbmIsDedicatedHostGroupInstanceProfileReferenceToMap(instanceProfil
 	return instanceProfileReferenceMap
 }
 
-func resourceIbmIsDedicatedHostGroupUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateDedicatedHostGroupOptions := &vpcv1.UpdateDedicatedHostGroupOptions{}
@@ -401,51 +400,51 @@ func resourceIbmIsDedicatedHostGroupUpdate(context context.Context, d *schema.Re
 		dedicatedHostGroupPatch, err := dedicatedHostGroupPatchModel.AsPatch()
 		if err != nil {
 			log.Printf("[DEBUG] Error calling asPatch for DedicatedHostGroupPatch: %s", err)
-			return diag.FromErr(err)
+			return err
 		}
 		updateDedicatedHostGroupOptions.DedicatedHostGroupPatch = dedicatedHostGroupPatch
 		hasChange = true
 	}
 
 	if hasChange {
-		_, response, err := vpcClient.UpdateDedicatedHostGroupWithContext(context, updateDedicatedHostGroupOptions)
+		_, response, err := vpcClient.UpdateDedicatedHostGroupWithContext(context.TODO(), updateDedicatedHostGroupOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateDedicatedHostGroupWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
-	return resourceIbmIsDedicatedHostGroupRead(context, d, meta)
+	return resourceIbmIsDedicatedHostGroupRead(d, meta)
 }
 
-func resourceIbmIsDedicatedHostGroupDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIsDedicatedHostGroupDelete(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getDedicatedHostGroupOptions := &vpcv1.GetDedicatedHostGroupOptions{}
 
 	getDedicatedHostGroupOptions.SetID(d.Id())
 
-	_, response, err := vpcClient.GetDedicatedHostGroupWithContext(context, getDedicatedHostGroupOptions)
+	_, response, err := vpcClient.GetDedicatedHostGroupWithContext(context.TODO(), getDedicatedHostGroupOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetDedicatedHostGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteDedicatedHostGroupOptions := &vpcv1.DeleteDedicatedHostGroupOptions{}
 
 	deleteDedicatedHostGroupOptions.SetID(d.Id())
 
-	response, err = vpcClient.DeleteDedicatedHostGroupWithContext(context, deleteDedicatedHostGroupOptions)
+	response, err = vpcClient.DeleteDedicatedHostGroupWithContext(context.TODO(), deleteDedicatedHostGroupOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteDedicatedHostGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId("")

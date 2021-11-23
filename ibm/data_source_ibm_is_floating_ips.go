@@ -4,20 +4,18 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIBMIsFloatingIps() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMIsFloatingIpsRead,
+		Read: dataSourceIBMIsFloatingIpsRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -169,10 +167,10 @@ func dataSourceIBMIsFloatingIps() *schema.Resource {
 	}
 }
 
-func dataSourceIBMIsFloatingIpsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMIsFloatingIpsRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := vpcClient(meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	start := ""
 	allFloatingIPs := []vpcv1.FloatingIP{}
@@ -184,7 +182,7 @@ func dataSourceIBMIsFloatingIpsRead(context context.Context, d *schema.ResourceD
 		floatingIPs, response, err := sess.ListFloatingIps(floatingIPOptions)
 		if err != nil {
 			log.Printf("[DEBUG] Error Fetching floating IPs  %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("Error Fetching floating IPs %s\n%s", err, response))
+			return fmt.Errorf("Error Fetching floating IPs %s\n%s", err, response)
 		}
 		start = GetNext(floatingIPs.Next)
 		allFloatingIPs = append(allFloatingIPs, floatingIPs.FloatingIps...)
@@ -209,7 +207,7 @@ func dataSourceIBMIsFloatingIpsRead(context context.Context, d *schema.ResourceD
 	}
 	if suppliedFilter {
 		if len(matchFloatingIps) == 0 {
-			return diag.FromErr(fmt.Errorf("no FloatingIps found with name %s", name))
+			return fmt.Errorf("no FloatingIps found with name %s", name)
 		}
 		d.SetId(name)
 	} else {
@@ -219,7 +217,7 @@ func dataSourceIBMIsFloatingIpsRead(context context.Context, d *schema.ResourceD
 	if matchFloatingIps != nil {
 		err = d.Set("floating_ips", dataSourceFloatingIPCollectionFlattenFloatingIps(matchFloatingIps))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting floating_ips %s", err))
+			return fmt.Errorf("Error setting floating_ips %s", err)
 		}
 	}
 	return nil

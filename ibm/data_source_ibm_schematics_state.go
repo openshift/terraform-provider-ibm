@@ -11,15 +11,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/schematics-go-sdk/schematicsv1"
 )
 
 func dataSourceIBMSchematicsState() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSchematicsStateRead,
+		Read: dataSourceIBMSchematicsStateRead,
 
 		Schema: map[string]*schema.Schema{
 			"workspace_id": &schema.Schema{
@@ -49,10 +48,10 @@ func dataSourceIBMSchematicsState() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSchematicsStateRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSchematicsStateRead(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getWorkspaceTemplateStateOptions := &schematicsv1.GetWorkspaceTemplateStateOptions{}
@@ -60,10 +59,10 @@ func dataSourceIBMSchematicsStateRead(context context.Context, d *schema.Resourc
 	getWorkspaceTemplateStateOptions.SetWID(d.Get("workspace_id").(string))
 	getWorkspaceTemplateStateOptions.SetTID(d.Get("template_id").(string))
 
-	_, response, _ := schematicsClient.GetWorkspaceTemplateStateWithContext(context, getWorkspaceTemplateStateOptions)
+	_, response, _ := schematicsClient.GetWorkspaceTemplateStateWithContext(context.TODO(), getWorkspaceTemplateStateOptions)
 	if response.StatusCode != 200 {
 		log.Printf("[DEBUG] GetWorkspaceTemplateStateWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetWorkspaceTemplateStateWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetWorkspaceTemplateStateWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(dataSourceIBMSchematicsStateID(d))
@@ -82,7 +81,7 @@ func dataSourceIBMSchematicsStateRead(context context.Context, d *schema.Resourc
 
 	stateByte, err := json.MarshalIndent(stateStore, "", "")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	stateStoreJSON := string(stateByte[:])
@@ -90,7 +89,7 @@ func dataSourceIBMSchematicsStateRead(context context.Context, d *schema.Resourc
 
 	controller, err := getBaseController(meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	d.Set(ResourceControllerURL, controller+"/schematics")
 

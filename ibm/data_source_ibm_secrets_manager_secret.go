@@ -4,20 +4,18 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/IBM/secrets-manager-go-sdk/secretsmanagerv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMSecretsManagerSecret() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSecretsManagerSecretRead,
+		Read: dataSourceIBMSecretsManagerSecretRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance_id": {
@@ -240,20 +238,20 @@ func datasourceIBMSecretsManagerSecretValidator() *ResourceValidator {
 	return &ibmSecretsManagerSecretdatasourceValidator
 }
 
-func dataSourceIBMSecretsManagerSecretRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSecretsManagerSecretRead(d *schema.ResourceData, meta interface{}) error {
 	bluemixSession, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	region := bluemixSession.Config.Region
 
 	secretsManagerClient, err := meta.(ClientSession).SecretsManagerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	rContollerClient, err := meta.(ClientSession).ResourceControllerAPIV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	instanceID := d.Get("instance_id").(string)
@@ -264,7 +262,7 @@ func dataSourceIBMSecretsManagerSecretRead(context context.Context, d *schema.Re
 
 	instanceData, err := rContollerAPI.GetInstance(instanceID)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	instanceCRN := instanceData.Crn.String()
 
@@ -279,7 +277,7 @@ func dataSourceIBMSecretsManagerSecretRead(context context.Context, d *schema.Re
 		smUrl := envFallBack([]string{"IBMCLOUD_SECRETS_MANAGER_API_ENDPOINT"}, smEndpointURL)
 		secretsManagerClient.Service.Options.URL = smUrl
 	} else {
-		return diag.FromErr(fmt.Errorf("Invalid or unsupported service Instance"))
+		return fmt.Errorf("Invalid or unsupported service Instance")
 	}
 
 	secretType := d.Get("secret_type").(string)
@@ -292,7 +290,7 @@ func dataSourceIBMSecretsManagerSecretRead(context context.Context, d *schema.Re
 	getSecret, response, err := secretsManagerClient.GetSecret(getSecretOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetSecret failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(dataSourceIBMSecretsManagerSecretID(d))
@@ -300,7 +298,7 @@ func dataSourceIBMSecretsManagerSecretRead(context context.Context, d *schema.Re
 	if getSecret.Metadata != nil {
 		err = d.Set("metadata", dataSourceGetSecretFlattenMetadata(*getSecret.Metadata))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting metadata %s", err))
+			return fmt.Errorf("Error setting metadata %s", err)
 		}
 	}
 

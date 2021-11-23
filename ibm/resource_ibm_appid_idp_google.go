@@ -2,22 +2,23 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDIDPGoogle() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Update Google identity provider configuration.",
-		CreateContext: resourceIBMAppIDIDPGoogleCreate,
-		ReadContext:   resourceIBMAppIDIDPGoogleRead,
-		DeleteContext: resourceIBMAppIDIDPGoogleDelete,
-		UpdateContext: resourceIBMAppIDIDPGoogleUpdate,
+		Description: "Update Google identity provider configuration.",
+		Create:      resourceIBMAppIDIDPGoogleCreate,
+		Read:        resourceIBMAppIDIDPGoogleRead,
+		Delete:      resourceIBMAppIDIDPGoogleDelete,
+		Update:      resourceIBMAppIDIDPGoogleUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -61,16 +62,16 @@ func resourceIBMAppIDIDPGoogle() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDIDPGoogleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPGoogleRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	gg, resp, err := appIDClient.GetGoogleIDPWithContext(ctx, &appid.GetGoogleIDPOptions{
+	gg, resp, err := appIDClient.GetGoogleIDPWithContext(context.TODO(), &appid.GetGoogleIDPOptions{
 		TenantID: &tenantID,
 	})
 
@@ -81,7 +82,7 @@ func resourceIBMAppIDIDPGoogleRead(ctx context.Context, d *schema.ResourceData, 
 			return nil
 		}
 
-		return diag.Errorf("Error loading AppID Google IDP: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Google IDP: %s\n%s", err, resp)
 	}
 
 	d.Set("is_active", *gg.IsActive)
@@ -92,7 +93,7 @@ func resourceIBMAppIDIDPGoogleRead(ctx context.Context, d *schema.ResourceData, 
 
 	if gg.Config != nil {
 		if err := d.Set("config", flattenIBMAppIDGoogleIDPConfig(gg.Config)); err != nil {
-			return diag.Errorf("Failed setting AppID Google IDP config: %s", err)
+			return fmt.Errorf("Failed setting AppID Google IDP config: %s", err)
 		}
 	}
 
@@ -101,11 +102,11 @@ func resourceIBMAppIDIDPGoogleRead(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func resourceIBMAppIDIDPGoogleCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPGoogleCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -122,31 +123,31 @@ func resourceIBMAppIDIDPGoogleCreate(ctx context.Context, d *schema.ResourceData
 		config.IDP.Config = expandAppIDGoogleIDPConfig(d.Get("config").([]interface{}))
 	}
 
-	_, resp, err := appIDClient.SetGoogleIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetGoogleIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error applying AppID Google IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error applying AppID Google IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDIDPGoogleRead(ctx, d, meta)
+	return resourceIBMAppIDIDPGoogleRead(d, meta)
 }
 
-func resourceIBMAppIDIDPGoogleDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPGoogleDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	config := appIDGoogleIDPConfigDefaults(tenantID)
 
-	_, resp, err := appIDClient.SetGoogleIDPWithContext(ctx, config)
+	_, resp, err := appIDClient.SetGoogleIDPWithContext(context.TODO(), config)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID Google IDP configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID Google IDP configuration: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
@@ -154,9 +155,9 @@ func resourceIBMAppIDIDPGoogleDelete(ctx context.Context, d *schema.ResourceData
 	return nil
 }
 
-func resourceIBMAppIDIDPGoogleUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceIBMAppIDIDPGoogleUpdate(d *schema.ResourceData, m interface{}) error {
 	// since this is configuration we can reuse create method
-	return resourceIBMAppIDIDPGoogleCreate(ctx, d, m)
+	return resourceIBMAppIDIDPGoogleCreate(d, m)
 }
 
 func expandAppIDGoogleIDPConfig(cfg []interface{}) *appid.FacebookGoogleConfigParamsConfig {

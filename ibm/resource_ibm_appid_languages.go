@@ -2,21 +2,22 @@ package ibm
 
 import (
 	"context"
-	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"fmt"
 	"log"
+
+	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMAppIDLanguages() *schema.Resource {
 	return &schema.Resource{
-		Description:   "User localization configuration",
-		CreateContext: resourceIBMAppIDLanguagesCreate,
-		ReadContext:   resourceIBMAppIDLanguagesRead,
-		DeleteContext: resourceIBMAppIDLanguagesDelete,
-		UpdateContext: resourceIBMAppIDLanguagesCreate,
+		Description: "User localization configuration",
+		Create:      resourceIBMAppIDLanguagesCreate,
+		Read:        resourceIBMAppIDLanguagesRead,
+		Delete:      resourceIBMAppIDLanguagesDelete,
+		Update:      resourceIBMAppIDLanguagesCreate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -37,16 +38,16 @@ func resourceIBMAppIDLanguages() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDLanguagesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDLanguagesRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	langs, resp, err := appIDClient.GetLocalizationWithContext(ctx, &appid.GetLocalizationOptions{
+	langs, resp, err := appIDClient.GetLocalizationWithContext(context.TODO(), &appid.GetLocalizationOptions{
 		TenantID: &tenantID,
 	})
 
@@ -57,7 +58,7 @@ func resourceIBMAppIDLanguagesRead(ctx context.Context, d *schema.ResourceData, 
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID languages: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID languages: %s\n%s", err, resp)
 	}
 
 	d.Set("languages", langs.Languages)
@@ -66,11 +67,11 @@ func resourceIBMAppIDLanguagesRead(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func resourceIBMAppIDLanguagesCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDLanguagesCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -81,22 +82,22 @@ func resourceIBMAppIDLanguagesCreate(ctx context.Context, d *schema.ResourceData
 		Languages: languages,
 	}
 
-	resp, err := appIDClient.UpdateLocalizationWithContext(ctx, input)
+	resp, err := appIDClient.UpdateLocalizationWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID languages: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID languages: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDLanguagesRead(ctx, d, meta)
+	return resourceIBMAppIDLanguagesRead(d, meta)
 }
 
-func resourceIBMAppIDLanguagesDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDLanguagesDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -106,10 +107,10 @@ func resourceIBMAppIDLanguagesDelete(ctx context.Context, d *schema.ResourceData
 		Languages: []string{"en"}, // AppID default
 	}
 
-	resp, err := appIDClient.UpdateLocalizationWithContext(ctx, input)
+	resp, err := appIDClient.UpdateLocalizationWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID languages: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID languages: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

@@ -2,14 +2,15 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMAppIDMFA() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDMFARead,
+		Read: dataSourceIBMAppIDMFARead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Description: "The AppID instance GUID",
@@ -25,21 +26,21 @@ func dataSourceIBMAppIDMFA() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDMFARead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDMFARead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 
-	mfa, resp, err := appIDClient.GetMFAConfigWithContext(ctx, &appid.GetMFAConfigOptions{
+	mfa, resp, err := appIDClient.GetMFAConfigWithContext(context.TODO(), &appid.GetMFAConfigOptions{
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting IBM AppID MFA configuration: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting IBM AppID MFA configuration: %s\n%s", err, resp)
 	}
 
 	if mfa.IsActive != nil {

@@ -2,24 +2,25 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+	"log"
+
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const defaultHeaderColor = "#EEF2F5" // AppID default
 
 func resourceIBMAppIDThemeColor() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Colors of the App ID login widget",
-		CreateContext: resourceIBMAppIDThemeColorCreate,
-		UpdateContext: resourceIBMAppIDThemeColorUpdate,
-		ReadContext:   resourceIBMAppIDThemeColorRead,
-		DeleteContext: resourceIBMAppIDThemeColorDelete,
+		Description: "Colors of the App ID login widget",
+		Create:      resourceIBMAppIDThemeColorCreate,
+		Update:      resourceIBMAppIDThemeColorUpdate,
+		Read:        resourceIBMAppIDThemeColorRead,
+		Delete:      resourceIBMAppIDThemeColorDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -36,16 +37,16 @@ func resourceIBMAppIDThemeColor() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDThemeColorRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDThemeColorRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Id()
 
-	colors, resp, err := appIDClient.GetThemeColorWithContext(ctx, &appid.GetThemeColorOptions{
+	colors, resp, err := appIDClient.GetThemeColorWithContext(context.TODO(), &appid.GetThemeColorOptions{
 		TenantID: &tenantID,
 	})
 
@@ -56,7 +57,7 @@ func resourceIBMAppIDThemeColorRead(ctx context.Context, d *schema.ResourceData,
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID theme colors: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID theme colors: %s\n%s", err, resp)
 	}
 
 	if colors.HeaderColor != nil {
@@ -68,11 +69,11 @@ func resourceIBMAppIDThemeColorRead(ctx context.Context, d *schema.ResourceData,
 	return nil
 }
 
-func resourceIBMAppIDThemeColorCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDThemeColorCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -82,26 +83,26 @@ func resourceIBMAppIDThemeColorCreate(ctx context.Context, d *schema.ResourceDat
 		HeaderColor: helpers.String(d.Get("header_color").(string)),
 	}
 
-	resp, err := appIDClient.PostThemeColorWithContext(ctx, input)
+	resp, err := appIDClient.PostThemeColorWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error setting AppID theme color: %s\n%s", err, resp)
+		return fmt.Errorf("Error setting AppID theme color: %s\n%s", err, resp)
 	}
 
 	d.SetId(tenantID)
 
-	return resourceIBMAppIDThemeColorRead(ctx, d, meta)
+	return resourceIBMAppIDThemeColorRead(d, meta)
 }
 
-func resourceIBMAppIDThemeColorUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return resourceIBMAppIDThemeColorCreate(ctx, d, meta)
+func resourceIBMAppIDThemeColorUpdate(d *schema.ResourceData, meta interface{}) error {
+	return resourceIBMAppIDThemeColorCreate(d, meta)
 }
 
-func resourceIBMAppIDThemeColorDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDThemeColorDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -111,10 +112,10 @@ func resourceIBMAppIDThemeColorDelete(ctx context.Context, d *schema.ResourceDat
 		HeaderColor: helpers.String(defaultHeaderColor),
 	}
 
-	resp, err := appIDClient.PostThemeColorWithContext(ctx, input)
+	resp, err := appIDClient.PostThemeColorWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error resetting AppID theme color: %s\n%s", err, resp)
+		return fmt.Errorf("Error resetting AppID theme color: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

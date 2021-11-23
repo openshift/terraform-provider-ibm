@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	rg "github.com/IBM/platform-services-go-sdk/resourcemanagerv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMResourceGroup() *schema.Resource {

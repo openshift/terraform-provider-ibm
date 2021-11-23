@@ -4,12 +4,10 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const (
@@ -57,7 +55,7 @@ const (
 
 func dataSourceIBMISInstanceTemplate() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMISInstanceTemplateRead,
+		Read: dataSourceIBMISInstanceTemplateRead,
 		Schema: map[string]*schema.Schema{
 			"identifier": {
 				Type:         schema.TypeString,
@@ -270,10 +268,10 @@ func dataSourceIBMISInstanceTemplate() *schema.Resource {
 	}
 }
 
-func dataSourceIBMISInstanceTemplateRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMISInstanceTemplateRead(d *schema.ResourceData, meta interface{}) error {
 	instanceC, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	if idOk, ok := d.GetOk("identifier"); ok {
 		id := idOk.(string)
@@ -282,7 +280,7 @@ func dataSourceIBMISInstanceTemplateRead(context context.Context, d *schema.Reso
 		}
 		instTempl, _, err := instanceC.GetInstanceTemplate(getInstanceTemplatesOptions)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		instance := instTempl.(*vpcv1.InstanceTemplate)
 		d.SetId(*instance.ID)
@@ -452,7 +450,7 @@ func dataSourceIBMISInstanceTemplateRead(context context.Context, d *schema.Reso
 		listInstanceTemplatesOptions := &vpcv1.ListInstanceTemplatesOptions{}
 		availableTemplates, _, err := instanceC.ListInstanceTemplates(listInstanceTemplatesOptions)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		flag := false
 		for _, instTempl := range availableTemplates.Templates {
@@ -624,7 +622,7 @@ func dataSourceIBMISInstanceTemplateRead(context context.Context, d *schema.Reso
 			}
 		}
 		if !flag {
-			return diag.FromErr(fmt.Errorf("No Instance Template found with name %s", name))
+			return fmt.Errorf("No Instance Template found with name %s", name)
 		}
 	}
 	return nil

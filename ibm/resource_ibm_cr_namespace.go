@@ -8,19 +8,18 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/container-registry-go-sdk/containerregistryv1"
 )
 
 func resourceIBMCrNamespace() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMCrNamespaceCreate,
-		ReadContext:   resourceIBMCrNamespaceRead,
-		UpdateContext: resourceIBMCrNamespaceUpdate,
-		DeleteContext: resourceIBMCrNamespaceDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMCrNamespaceCreate,
+		Read:     resourceIBMCrNamespaceRead,
+		Update:   resourceIBMCrNamespaceUpdate,
+		Delete:   resourceIBMCrNamespaceDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -104,10 +103,10 @@ func resourceIBMCrNamespaceValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMCrNamespaceCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCrNamespaceCreate(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createNamespaceOptions := &containerregistryv1.CreateNamespaceOptions{}
@@ -118,31 +117,31 @@ func resourceIBMCrNamespaceCreate(context context.Context, d *schema.ResourceDat
 	} else {
 		defaultRg, err := defaultResourceGroup(meta)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		createNamespaceOptions.SetXAuthResourceGroup(defaultRg)
 	}
 
-	namespace, response, err := containerRegistryClient.CreateNamespaceWithContext(context, createNamespaceOptions)
+	namespace, response, err := containerRegistryClient.CreateNamespaceWithContext(context.TODO(), createNamespaceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateNamespaceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*namespace.Namespace)
 
-	return resourceIBMCrNamespaceRead(context, d, meta)
+	return resourceIBMCrNamespaceRead(d, meta)
 }
 
-func resourceIBMCrNamespaceRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCrNamespaceRead(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listNamespaceDetailsOptions := &containerregistryv1.ListNamespaceDetailsOptions{}
 
-	namespaceDetailsList, response, err := containerRegistryClient.ListNamespaceDetailsWithContext(context, listNamespaceDetailsOptions)
+	namespaceDetailsList, response, err := containerRegistryClient.ListNamespaceDetailsWithContext(context.TODO(), listNamespaceDetailsOptions)
 
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
@@ -150,7 +149,7 @@ func resourceIBMCrNamespaceRead(context context.Context, d *schema.ResourceData,
 			return nil
 		}
 		log.Printf("[DEBUG] ListNamespaceDetailsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	var namespaceDetails containerregistryv1.NamespaceDetails
@@ -165,56 +164,56 @@ func resourceIBMCrNamespaceRead(context context.Context, d *schema.ResourceData,
 	}
 
 	if err = d.Set("name", namespaceDetails.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("resource_group_id", namespaceDetails.ResourceGroup); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_group_id: %s", err))
+		return fmt.Errorf("Error setting resource_group_id: %s", err)
 	}
 	if err = d.Set("account", namespaceDetails.Account); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting account: %s", err))
+		return fmt.Errorf("Error setting account: %s", err)
 	}
 	if err = d.Set("created_date", namespaceDetails.CreatedDate); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_date: %s", err))
+		return fmt.Errorf("Error setting created_date: %s", err)
 	}
 	if err = d.Set("crn", namespaceDetails.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("resource_created_date", namespaceDetails.ResourceCreatedDate); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_created_date: %s", err))
+		return fmt.Errorf("Error setting resource_created_date: %s", err)
 	}
 	if err = d.Set("updated_date", namespaceDetails.UpdatedDate); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_date: %s", err))
+		return fmt.Errorf("Error setting updated_date: %s", err)
 	}
 	// HAND-ADDED DEPRECATED FIELDS, TO BE DELETED IN FUTURE
 	if err = d.Set("updated_on", namespaceDetails.UpdatedDate); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_date: %s", err))
+		return fmt.Errorf("Error setting updated_date: %s", err)
 	}
 	if err = d.Set("created_on", namespaceDetails.CreatedDate); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_date: %s", err))
+		return fmt.Errorf("Error setting created_date: %s", err)
 	}
 
 	return nil
 }
 
 // Dummy update method just for local tags
-func resourceIBMCrNamespaceUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return resourceIBMCrNamespaceRead(context, d, meta)
+func resourceIBMCrNamespaceUpdate(d *schema.ResourceData, meta interface{}) error {
+	return resourceIBMCrNamespaceRead(d, meta)
 }
 
-func resourceIBMCrNamespaceDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMCrNamespaceDelete(d *schema.ResourceData, meta interface{}) error {
 	containerRegistryClient, err := meta.(ClientSession).ContainerRegistryV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteNamespaceOptions := &containerregistryv1.DeleteNamespaceOptions{}
 
 	deleteNamespaceOptions.SetName(d.Id())
 
-	response, err := containerRegistryClient.DeleteNamespaceWithContext(context, deleteNamespaceOptions)
+	response, err := containerRegistryClient.DeleteNamespaceWithContext(context.TODO(), deleteNamespaceOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteNamespaceWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId("")

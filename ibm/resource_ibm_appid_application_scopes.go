@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"log"
 	"strings"
 )
 
 func resourceIBMAppIDApplicationScopes() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDApplicationScopesCreate,
-		ReadContext:   resourceIBMAppIDApplicationScopesRead,
-		DeleteContext: resourceIBMAppIDApplicationScopesDelete,
-		UpdateContext: resourceIBMAppIDApplicationScopesUpdate,
+		Create: resourceIBMAppIDApplicationScopesCreate,
+		Read:   resourceIBMAppIDApplicationScopesRead,
+		Delete: resourceIBMAppIDApplicationScopesDelete,
+		Update: resourceIBMAppIDApplicationScopesUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -44,11 +43,11 @@ func resourceIBMAppIDApplicationScopes() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDApplicationScopesCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationScopesCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -61,35 +60,35 @@ func resourceIBMAppIDApplicationScopesCreate(ctx context.Context, d *schema.Reso
 		Scopes:   scopes,
 	}
 
-	_, resp, err := appIDClient.PutApplicationsScopesWithContext(ctx, scopeOpts)
+	_, resp, err := appIDClient.PutApplicationsScopesWithContext(context.TODO(), scopeOpts)
 
 	if err != nil {
-		return diag.Errorf("Error setting application scopes: %s\n%s", err, resp)
+		return fmt.Errorf("Error setting application scopes: %s\n%s", err, resp)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, clientID))
 
-	return resourceIBMAppIDApplicationScopesRead(ctx, d, meta)
+	return resourceIBMAppIDApplicationScopesRead(d, meta)
 }
 
-func resourceIBMAppIDApplicationScopesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationScopesRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
 	idParts := strings.Split(id, "/")
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/clientID", d.Id())
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/clientID", d.Id())
 	}
 
 	tenantID := idParts[0]
 	clientID := idParts[1]
 
-	scopes, resp, err := appIDClient.GetApplicationScopesWithContext(ctx, &appid.GetApplicationScopesOptions{
+	scopes, resp, err := appIDClient.GetApplicationScopesWithContext(context.TODO(), &appid.GetApplicationScopesOptions{
 		TenantID: &tenantID,
 		ClientID: &clientID,
 	})
@@ -101,11 +100,11 @@ func resourceIBMAppIDApplicationScopesRead(ctx context.Context, d *schema.Resour
 			return nil
 		}
 
-		return diag.Errorf("Error getting AppID application scopes: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID application scopes: %s\n%s", err, resp)
 	}
 
 	if err := d.Set("scopes", scopes.Scopes); err != nil {
-		return diag.Errorf("Error setting application scopes: %s", err)
+		return fmt.Errorf("Error setting application scopes: %s", err)
 	}
 
 	d.Set("tenant_id", tenantID)
@@ -114,11 +113,11 @@ func resourceIBMAppIDApplicationScopesRead(ctx context.Context, d *schema.Resour
 	return nil
 }
 
-func resourceIBMAppIDApplicationScopesUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationScopesUpdate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -131,20 +130,20 @@ func resourceIBMAppIDApplicationScopesUpdate(ctx context.Context, d *schema.Reso
 		Scopes:   scopes,
 	}
 
-	_, resp, err := appIDClient.PutApplicationsScopesWithContext(ctx, scopeOpts)
+	_, resp, err := appIDClient.PutApplicationsScopesWithContext(context.TODO(), scopeOpts)
 
 	if err != nil {
-		return diag.Errorf("Error updating application scopes: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating application scopes: %s\n%s", err, resp)
 	}
 
-	return resourceIBMAppIDApplicationScopesRead(ctx, d, meta)
+	return resourceIBMAppIDApplicationScopesRead(d, meta)
 }
 
-func resourceIBMAppIDApplicationScopesDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDApplicationScopesDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -156,10 +155,10 @@ func resourceIBMAppIDApplicationScopesDelete(ctx context.Context, d *schema.Reso
 		Scopes:   []string{},
 	}
 
-	_, resp, err := appIDClient.PutApplicationsScopesWithContext(ctx, scopeOpts)
+	_, resp, err := appIDClient.PutApplicationsScopesWithContext(context.TODO(), scopeOpts)
 
 	if err != nil {
-		return diag.Errorf("Error clearing application scopes: %s\n%s", err, resp)
+		return fmt.Errorf("Error clearing application scopes: %s\n%s", err, resp)
 	}
 
 	d.SetId("")

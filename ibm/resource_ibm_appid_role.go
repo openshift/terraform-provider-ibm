@@ -5,20 +5,19 @@ import (
 	"fmt"
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"strings"
 )
 
 func resourceIBMAppIDRole() *schema.Resource {
 	return &schema.Resource{
-		Description:   "A role is a collection of `scopes` that allow varying permissions to different types of app users",
-		CreateContext: resourceIBMAppIDRoleCreate,
-		ReadContext:   resourceIBMAppIDRoleRead,
-		DeleteContext: resourceIBMAppIDRoleDelete,
-		UpdateContext: resourceIBMAppIDRoleUpdate,
+		Description: "A role is a collection of `scopes` that allow varying permissions to different types of app users",
+		Create:      resourceIBMAppIDRoleCreate,
+		Read:        resourceIBMAppIDRoleRead,
+		Delete:      resourceIBMAppIDRoleDelete,
+		Update:      resourceIBMAppIDRoleUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"role_id": {
@@ -66,11 +65,11 @@ func resourceIBMAppIDRole() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDRoleCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRoleCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -87,41 +86,41 @@ func resourceIBMAppIDRoleCreate(ctx context.Context, d *schema.ResourceData, met
 
 	input.Access = expandAppIDRoleAccess(d.Get("access").(*schema.Set).List())
 
-	role, resp, err := appIDClient.CreateRoleWithContext(ctx, input)
+	role, resp, err := appIDClient.CreateRoleWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error creating AppID role: %s\n%s", err, resp)
+		return fmt.Errorf("Error creating AppID role: %s\n%s", err, resp)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", tenantID, *role.ID))
 
-	return resourceIBMAppIDRoleRead(ctx, d, meta)
+	return resourceIBMAppIDRoleRead(d, meta)
 }
 
-func resourceIBMAppIDRoleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRoleRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
 	idParts := strings.Split(id, "/")
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/roleID", d.Id())
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/roleID", d.Id())
 	}
 
 	tenantID := idParts[0]
 	roleID := idParts[1]
 
-	role, resp, err := appIDClient.GetRoleWithContext(ctx, &appid.GetRoleOptions{
+	role, resp, err := appIDClient.GetRoleWithContext(context.TODO(), &appid.GetRoleOptions{
 		RoleID:   &roleID,
 		TenantID: &tenantID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error loading AppID role: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID role: %s\n%s", err, resp)
 	}
 
 	d.Set("name", *role.Name)
@@ -131,7 +130,7 @@ func resourceIBMAppIDRoleRead(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	if err := d.Set("access", flattenAppIDRoleAccess(role.Access)); err != nil {
-		return diag.Errorf("Error setting AppID role access: %s", err)
+		return fmt.Errorf("Error setting AppID role access: %s", err)
 	}
 
 	d.Set("tenant_id", tenantID)
@@ -140,11 +139,11 @@ func resourceIBMAppIDRoleRead(ctx context.Context, d *schema.ResourceData, meta 
 	return nil
 }
 
-func resourceIBMAppIDRoleDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRoleDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
@@ -154,28 +153,28 @@ func resourceIBMAppIDRoleDelete(ctx context.Context, d *schema.ResourceData, met
 	roleID := idParts[1]
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/roleID", d.Id())
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/roleID", d.Id())
 	}
 
-	resp, err := appIDClient.DeleteRoleWithContext(ctx, &appid.DeleteRoleOptions{
+	resp, err := appIDClient.DeleteRoleWithContext(context.TODO(), &appid.DeleteRoleOptions{
 		TenantID: &tenantID,
 		RoleID:   &roleID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error deleting AppID role: %s\n%s", err, resp)
+		return fmt.Errorf("Error deleting AppID role: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
 	return nil
 }
 
-func resourceIBMAppIDRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDRoleUpdate(d *schema.ResourceData, meta interface{}) error {
 	// AppID role resource does not support partial updates, all inputs should be included
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
@@ -186,7 +185,7 @@ func resourceIBMAppIDRoleUpdate(ctx context.Context, d *schema.ResourceData, met
 	roleName := d.Get("name").(string)
 
 	if len(idParts) < 2 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/roleID", d.Id())
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/roleID", d.Id())
 	}
 
 	input := &appid.UpdateRoleOptions{
@@ -201,13 +200,13 @@ func resourceIBMAppIDRoleUpdate(ctx context.Context, d *schema.ResourceData, met
 
 	input.Access = expandAppIDRoleAccess(d.Get("access").(*schema.Set).List())
 
-	_, resp, err := appIDClient.UpdateRoleWithContext(ctx, input)
+	_, resp, err := appIDClient.UpdateRoleWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID role: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID role: %s\n%s", err, resp)
 	}
 
-	return dataSourceIBMAppIDRoleRead(ctx, d, meta)
+	return dataSourceIBMAppIDRoleRead(d, meta)
 }
 
 func expandAppIDRoleAccess(l []interface{}) []appid.RoleAccessItem {

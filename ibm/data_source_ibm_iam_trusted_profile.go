@@ -4,19 +4,17 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
 
 func dataSourceIBMIamTrustedProfile() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMIamTrustedProfileRead,
+		Read: dataSourceIBMIamTrustedProfileRead,
 
 		Schema: map[string]*schema.Schema{
 			"profile_id": &schema.Schema{
@@ -120,10 +118,10 @@ func dataSourceIBMIamTrustedProfile() *schema.Resource {
 	}
 }
 
-func dataSourceIBMIamTrustedProfileRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMIamTrustedProfileRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getProfileOptions := &iamidentityv1.GetProfileOptions{}
@@ -133,45 +131,45 @@ func dataSourceIBMIamTrustedProfileRead(context context.Context, d *schema.Resou
 	trustedProfile, response, err := iamIdentityClient.GetProfile(getProfileOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetProfile failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetProfile failed %s\n%s", err, response))
+		return fmt.Errorf("GetProfile failed %s\n%s", err, response)
 	}
 
 	d.SetId(*trustedProfile.ID)
 
 	if err = d.Set("entity_tag", trustedProfile.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("crn", trustedProfile.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("name", trustedProfile.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("description", trustedProfile.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(trustedProfile.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("modified_at", dateTimeToString(trustedProfile.ModifiedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 	if err = d.Set("iam_id", trustedProfile.IamID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting iam_id: %s", err))
+		return fmt.Errorf("Error setting iam_id: %s", err)
 	}
 	if err = d.Set("account_id", trustedProfile.AccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting account_id: %s", err))
+		return fmt.Errorf("Error setting account_id: %s", err)
 	}
 	if err = d.Set("ims_account_id", intValue(trustedProfile.ImsAccountID)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting ims_account_id: %s", err))
+		return fmt.Errorf("Error setting ims_account_id: %s", err)
 	}
 	if err = d.Set("ims_user_id", intValue(trustedProfile.ImsUserID)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting ims_user_id: %s", err))
+		return fmt.Errorf("Error setting ims_user_id: %s", err)
 	}
 
 	err = d.Set("history", dataSourceTrustedProfileFlattenHistory(trustedProfile.History))
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting history %s", err))
+		return fmt.Errorf("Error setting history %s", err)
 	}
 
 	return nil

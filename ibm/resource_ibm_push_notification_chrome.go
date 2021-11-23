@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/IBM/push-notifications-go-sdk/pushservicev1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMPNApplicationChrome() *schema.Resource {

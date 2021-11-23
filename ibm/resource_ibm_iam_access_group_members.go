@@ -4,7 +4,6 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"time"
@@ -12,17 +11,16 @@ import (
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 
 	"github.com/IBM/platform-services-go-sdk/iamaccessgroupsv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMIAMAccessGroupMembers() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMIAMAccessGroupMembersCreate,
-		ReadContext:   resourceIBMIAMAccessGroupMembersRead,
-		UpdateContext: resourceIBMIAMAccessGroupMembersUpdate,
-		DeleteContext: resourceIBMIAMAccessGroupMembersDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMIAMAccessGroupMembersCreate,
+		Read:     resourceIBMIAMAccessGroupMembersRead,
+		Update:   resourceIBMIAMAccessGroupMembersUpdate,
+		Delete:   resourceIBMIAMAccessGroupMembersDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"access_group_id": {
@@ -65,17 +63,17 @@ func resourceIBMIAMAccessGroupMembers() *schema.Resource {
 	}
 }
 
-func resourceIBMIAMAccessGroupMembersCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupMembersCreate(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	grpID := d.Get("access_group_id").(string)
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := userDetails.userAccount
@@ -86,18 +84,18 @@ func resourceIBMIAMAccessGroupMembersCreate(context context.Context, d *schema.R
 	services := expandStringList(d.Get("iam_service_ids").(*schema.Set).List())
 
 	if len(users) == 0 && len(services) == 0 {
-		return diag.FromErr(fmt.Errorf("ERROR] Provide either `ibm_ids` or `iam_service_ids`"))
+		return fmt.Errorf("ERROR] Provide either `ibm_ids` or `iam_service_ids`")
 
 	}
 
 	userids, err = flattenUserIds(accountID, users, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	serviceids, err = flattenServiceIds(services, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	members := prepareMemberAddRequest(iamAccessGroupsClient, userids, serviceids)
@@ -106,23 +104,23 @@ func resourceIBMIAMAccessGroupMembersCreate(context context.Context, d *schema.R
 	addMembersToAccessGroupOptions.SetMembers(members)
 	membership, detailResponse, err := iamAccessGroupsClient.AddMembersToAccessGroup(addMembersToAccessGroupOptions)
 	if err != nil || membership == nil {
-		return diag.FromErr(fmt.Errorf("Error adding members to group(%s). API response: %s", grpID, detailResponse))
+		return fmt.Errorf("Error adding members to group(%s). API response: %s", grpID, detailResponse)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", grpID, time.Now().UTC().String()))
 
-	return resourceIBMIAMAccessGroupMembersRead(context, d, meta)
+	return resourceIBMIAMAccessGroupMembersRead(d, meta)
 }
 
-func resourceIBMIAMAccessGroupMembersRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupMembersRead(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	grpID := parts[0]
@@ -133,7 +131,7 @@ func resourceIBMIAMAccessGroupMembersRead(context context.Context, d *schema.Res
 	listAccessGroupMembersOptions.SetLimit(limit)
 	members, detailedResponse, err := iamAccessGroupsClient.ListAccessGroupMembers(listAccessGroupMembersOptions)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error retrieving access group members: %s. API Response: %s", err, detailedResponse))
+		return fmt.Errorf("[ERROR] Error retrieving access group members: %s. API Response: %s", err, detailedResponse)
 	}
 	allMembers := members.Members
 	totalMembers := intValue(members.TotalCount)
@@ -142,7 +140,7 @@ func resourceIBMIAMAccessGroupMembersRead(context context.Context, d *schema.Res
 		listAccessGroupMembersOptions.SetOffset(offset)
 		members, detailedResponse, err = iamAccessGroupsClient.ListAccessGroupMembers(listAccessGroupMembersOptions)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("[ERROR] Error retrieving access group members: %s. API Response: %s", err, detailedResponse))
+			return fmt.Errorf("[ERROR] Error retrieving access group members: %s. API Response: %s", err, detailedResponse)
 		}
 		allMembers = append(allMembers, members.Members...)
 	}
@@ -151,24 +149,24 @@ func resourceIBMIAMAccessGroupMembersRead(context context.Context, d *schema.Res
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := userDetails.userAccount
 
 	userManagement, err := meta.(ClientSession).UserManagementAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	client := userManagement.UserInvite()
 	res, err := client.ListUsers(accountID)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	iamClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	start := ""
@@ -185,7 +183,7 @@ func resourceIBMIAMAccessGroupMembersRead(context context.Context, d *schema.Res
 
 		serviceIDs, resp, err := iamClient.ListServiceIds(&listServiceIDOptions)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("[ERROR] Error listing Service Ids %s %s", err, resp))
+			return fmt.Errorf("[ERROR] Error listing Service Ids %s %s", err, resp)
 		}
 		start = GetNextIAM(serviceIDs.Next)
 		allrecs = append(allrecs, serviceIDs.Serviceids...)
@@ -205,22 +203,22 @@ func resourceIBMIAMAccessGroupMembersRead(context context.Context, d *schema.Res
 	return nil
 }
 
-func resourceIBMIAMAccessGroupMembersUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupMembersUpdate(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	grpID := parts[0]
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := userDetails.userAccount
@@ -244,12 +242,12 @@ func resourceIBMIAMAccessGroupMembersUpdate(context context.Context, d *schema.R
 		var userids, serviceids []string
 		userids, err = flattenUserIds(accountID, addUsers, meta)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 		serviceids, err = flattenServiceIds(addServiceids, meta)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		members := prepareMemberAddRequest(iamAccessGroupsClient, userids, serviceids)
 
@@ -257,24 +255,24 @@ func resourceIBMIAMAccessGroupMembersUpdate(context context.Context, d *schema.R
 		addMembersToAccessGroupOptions.SetMembers(members)
 		membership, detailResponse, err := iamAccessGroupsClient.AddMembersToAccessGroup(addMembersToAccessGroupOptions)
 		if err != nil || membership == nil {
-			return diag.FromErr(fmt.Errorf("Error updating members to group(%s). API response: %s", grpID, detailResponse))
+			return fmt.Errorf("Error updating members to group(%s). API response: %s", grpID, detailResponse)
 		}
 
 	}
 	if len(removeUsers) > 0 || len(removeServiceids) > 0 && !d.IsNewResource() {
 		iamClient, err := meta.(ClientSession).IAMIdentityV1API()
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		for _, u := range removeUsers {
 			ibmUniqueId, err := getIBMUniqueId(accountID, u, meta)
 			if err != nil {
-				return diag.FromErr(err)
+				return err
 			}
 			removeMembersFromAccessGroupOptions := iamAccessGroupsClient.NewRemoveMemberFromAccessGroupOptions(grpID, ibmUniqueId)
 			_, err = iamAccessGroupsClient.RemoveMemberFromAccessGroup(removeMembersFromAccessGroupOptions)
 			if err != nil {
-				return diag.FromErr(err)
+				return err
 			}
 
 		}
@@ -285,37 +283,37 @@ func resourceIBMIAMAccessGroupMembersUpdate(context context.Context, d *schema.R
 			}
 			serviceID, resp, err := iamClient.GetServiceID(&getServiceIDOptions)
 			if err != nil || serviceID == nil {
-				return diag.FromErr(fmt.Errorf("ERROR] Error Getting Service Ids %s %s", err, resp))
+				return fmt.Errorf("ERROR] Error Getting Service Ids %s %s", err, resp)
 			}
 			removeMembersFromAccessGroupOptions := iamAccessGroupsClient.NewRemoveMemberFromAccessGroupOptions(grpID, *serviceID.IamID)
 			detailResponse, err := iamAccessGroupsClient.RemoveMemberFromAccessGroup(removeMembersFromAccessGroupOptions)
 			if err != nil {
-				return diag.FromErr(fmt.Errorf("Error removing members to group(%s). API Response: %s", grpID, detailResponse))
+				return fmt.Errorf("Error removing members to group(%s). API Response: %s", grpID, detailResponse)
 			}
 
 		}
 	}
 
-	return resourceIBMIAMAccessGroupMembersRead(context, d, meta)
+	return resourceIBMIAMAccessGroupMembersRead(d, meta)
 
 }
 
-func resourceIBMIAMAccessGroupMembersDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIAMAccessGroupMembersDelete(d *schema.ResourceData, meta interface{}) error {
 	iamAccessGroupsClient, err := meta.(ClientSession).IAMAccessGroupsV2()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	parts, err := idParts(d.Id())
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	grpID := parts[0]
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	users := expandStringList(d.Get("ibm_ids").(*schema.Set).List())
@@ -324,13 +322,13 @@ func resourceIBMIAMAccessGroupMembersDelete(context context.Context, d *schema.R
 
 		ibmUniqueID, err := getIBMUniqueId(userDetails.userAccount, name, meta)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 		removeMembersFromAccessGroupOptions := iamAccessGroupsClient.NewRemoveMemberFromAccessGroupOptions(grpID, ibmUniqueID)
 		_, err = iamAccessGroupsClient.RemoveMemberFromAccessGroup(removeMembersFromAccessGroupOptions)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 	}
@@ -340,7 +338,7 @@ func resourceIBMIAMAccessGroupMembersDelete(context context.Context, d *schema.R
 	for _, id := range services {
 		serviceID, err := getServiceID(id, meta)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 
 		removeMembersFromAccessGroupOptions := &iamaccessgroupsv2.RemoveMemberFromAccessGroupOptions{
@@ -349,7 +347,7 @@ func resourceIBMIAMAccessGroupMembersDelete(context context.Context, d *schema.R
 		}
 		_, err = iamAccessGroupsClient.RemoveMemberFromAccessGroup(removeMembersFromAccessGroupOptions)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 	}
 

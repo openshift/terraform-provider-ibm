@@ -12,17 +12,16 @@ import (
 
 	"github.com/IBM/eventstreams-go-sdk/pkg/schemaregistryv1"
 	"github.com/IBM/platform-services-go-sdk/resourcecontrollerv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMEventStreamsSchema() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMEventStreamsSchemaCreate,
-		ReadContext:   resourceIBMEventStreamsSchemaRead,
-		UpdateContext: resourceIBMEventStreamsSchemaUpdate,
-		DeleteContext: resourceIBMEventStreamsSchemaDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMEventStreamsSchemaCreate,
+		Read:     resourceIBMEventStreamsSchemaRead,
+		Update:   resourceIBMEventStreamsSchemaUpdate,
+		Delete:   resourceIBMEventStreamsSchemaDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"resource_instance_id": &schema.Schema{
@@ -170,14 +169,14 @@ func validateName(s map[string]interface{}, t string) error {
 	return nil
 }
 
-func resourceIBMEventStreamsSchemaCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEventStreamsSchemaCreate(d *schema.ResourceData, meta interface{}) error {
 	schemaregistryClient, err := meta.(ClientSession).ESschemaRegistrySession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	adminURL, instanceCRN, err := getInstanceURL(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	schemaregistryClient.SetServiceURL(adminURL)
 	createSchemaOptions := &schemaregistryv1.CreateSchemaOptions{}
@@ -191,26 +190,26 @@ func resourceIBMEventStreamsSchemaCreate(context context.Context, d *schema.Reso
 		createSchemaOptions.SetID(d.Get("schema_id").(string))
 	}
 
-	schemaMetadata, response, err := schemaregistryClient.CreateSchemaWithContext(context, createSchemaOptions)
+	schemaMetadata, response, err := schemaregistryClient.CreateSchemaWithContext(context.TODO(), createSchemaOptions)
 	if err != nil || schemaMetadata == nil {
 		log.Printf("[DEBUG] CreateSchemaWithContext failed with error: %s and response: \n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateSchemaWithContext failed with eror: %s and response: \n%s", err, response))
+		return fmt.Errorf("CreateSchemaWithContext failed with eror: %s and response: \n%s", err, response)
 	}
 	uniqueID := getUniqueSchemaID(instanceCRN, *schemaMetadata.ID)
 	d.SetId(uniqueID)
 
-	return resourceIBMEventStreamsSchemaRead(context, d, meta)
+	return resourceIBMEventStreamsSchemaRead(d, meta)
 }
 
-func resourceIBMEventStreamsSchemaRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEventStreamsSchemaRead(d *schema.ResourceData, meta interface{}) error {
 	schemaregistryClient, err := meta.(ClientSession).ESschemaRegistrySession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	adminURL, instanceCRN, err := getInstanceURL(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	schemaregistryClient.SetServiceURL(adminURL)
 
@@ -219,23 +218,23 @@ func resourceIBMEventStreamsSchemaRead(context context.Context, d *schema.Resour
 	schemaID := getSchemaID(d.Id())
 	getSchemaOptions.SetID(schemaID)
 
-	avroSchema, response, err := schemaregistryClient.GetLatestSchemaWithContext(context, getSchemaOptions)
+	avroSchema, response, err := schemaregistryClient.GetLatestSchemaWithContext(context.TODO(), getSchemaOptions)
 	if err != nil || avroSchema == nil {
 		log.Printf("[DEBUG] GetSchemaWithContext failed with error: %s and response: \n%s", err, response)
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("GetSchemaWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetSchemaWithContext failed %s\n%s", err, response)
 	}
 
 	s, err := json.Marshal(avroSchema)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error marshalling the created schema: %s", err))
+		return fmt.Errorf("error marshalling the created schema: %s", err)
 	}
 
 	if err = d.Set("schema", string(s)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting the schema: %s", err))
+		return fmt.Errorf("error setting the schema: %s", err)
 	}
 	d.Set("resource_instance_id", instanceCRN)
 	d.Set("schema_id", schemaID)
@@ -243,15 +242,15 @@ func resourceIBMEventStreamsSchemaRead(context context.Context, d *schema.Resour
 	return nil
 }
 
-func resourceIBMEventStreamsSchemaUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEventStreamsSchemaUpdate(d *schema.ResourceData, meta interface{}) error {
 	schemaregistryClient, err := meta.(ClientSession).ESschemaRegistrySession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	adminURL, _, err := getInstanceURL(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	schemaregistryClient.SetServiceURL(adminURL)
 
@@ -265,25 +264,25 @@ func resourceIBMEventStreamsSchemaUpdate(context context.Context, d *schema.Reso
 			json.Unmarshal([]byte(s.(string)), &schema)
 			updateSchemaOptions.Schema = schema
 		}
-		schemaMetadata, response, err := schemaregistryClient.UpdateSchemaWithContext(context, updateSchemaOptions)
+		schemaMetadata, response, err := schemaregistryClient.UpdateSchemaWithContext(context.TODO(), updateSchemaOptions)
 		if err != nil || schemaMetadata == nil {
 			log.Printf("[DEBUG] UpdateSchemaWithContext failed with error: %s\n and response: %s", err, response)
-			return diag.FromErr(fmt.Errorf("UpdateSchemaWithContext failed with error: %s and response: \n%s", err, response))
+			return fmt.Errorf("UpdateSchemaWithContext failed with error: %s and response: \n%s", err, response)
 		}
 	}
 
-	return resourceIBMEventStreamsSchemaRead(context, d, meta)
+	return resourceIBMEventStreamsSchemaRead(d, meta)
 }
 
-func resourceIBMEventStreamsSchemaDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEventStreamsSchemaDelete(d *schema.ResourceData, meta interface{}) error {
 	schemaregistryClient, err := meta.(ClientSession).ESschemaRegistrySession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	adminURL, _, err := getInstanceURL(d, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	schemaregistryClient.SetServiceURL(adminURL)
 
@@ -291,10 +290,10 @@ func resourceIBMEventStreamsSchemaDelete(context context.Context, d *schema.Reso
 	schemaID := d.Get("schema_id").(string)
 	deleteSchemaOptions.SetID(schemaID)
 
-	response, err := schemaregistryClient.DeleteSchemaWithContext(context, deleteSchemaOptions)
+	response, err := schemaregistryClient.DeleteSchemaWithContext(context.TODO(), deleteSchemaOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteSchemaWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteSchemaWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteSchemaWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

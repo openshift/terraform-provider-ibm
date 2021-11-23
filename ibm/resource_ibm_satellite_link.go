@@ -10,17 +10,16 @@ import (
 
 	"github.com/IBM-Cloud/container-services-go-sdk/kubernetesserviceapiv1"
 	"github.com/IBM-Cloud/container-services-go-sdk/satellitelinkv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIbmSatelliteLink() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmSatelliteLinkCreate,
-		ReadContext:   resourceIbmSatelliteLinkRead,
-		UpdateContext: resourceIbmSatelliteLinkUpdate,
-		DeleteContext: resourceIbmSatelliteLinkDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmSatelliteLinkCreate,
+		Read:     resourceIbmSatelliteLinkRead,
+		Update:   resourceIbmSatelliteLinkUpdate,
+		Delete:   resourceIbmSatelliteLinkDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"crn": &schema.Schema{
@@ -138,10 +137,10 @@ func resourceIbmSatelliteLink() *schema.Resource {
 	}
 }
 
-func resourceIbmSatelliteLinkCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteLinkCreate(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createLinkOptions := &satellitelinkv1.CreateLinkOptions{}
@@ -153,40 +152,40 @@ func resourceIbmSatelliteLinkCreate(context context.Context, d *schema.ResourceD
 		createLinkOptions.SetLocationID(d.Get("location").(string))
 	}
 
-	location, response, err := satelliteLinkClient.CreateLinkWithContext(context, createLinkOptions)
+	location, response, err := satelliteLinkClient.CreateLinkWithContext(context.TODO(), createLinkOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateLinkWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateLinkWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateLinkWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*location.LocationID)
 
-	return resourceIbmSatelliteLinkUpdate(context, d, meta)
+	return resourceIbmSatelliteLinkUpdate(d, meta)
 }
 
-func resourceIbmSatelliteLinkRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteLinkRead(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	satClient, err := meta.(ClientSession).SatelliteClientSession()
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("SatelliteClientSession failed %s\n", err))
+		return fmt.Errorf("SatelliteClientSession failed %s\n", err)
 	}
 
 	getLinkOptions := &satellitelinkv1.GetLinkOptions{}
 
 	getLinkOptions.SetLocationID(d.Id())
 
-	link, response, err := satelliteLinkClient.GetLinkWithContext(context, getLinkOptions)
+	link, response, err := satelliteLinkClient.GetLinkWithContext(context.TODO(), getLinkOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetLinkWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetLinkWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetLinkWithContext failed %s\n%s", err, response)
 	}
 
 	getSatLocOptions := &kubernetesserviceapiv1.GetSatelliteLocationOptions{
@@ -199,30 +198,30 @@ func resourceIbmSatelliteLinkRead(context context.Context, d *schema.ResourceDat
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("GetSatelliteLocation failed %s\n%s", err, response))
+		return fmt.Errorf("GetSatelliteLocation failed %s\n%s", err, response)
 	}
 
 	d.Set("crn", *locInstance.Crn)
 	if err = d.Set("location", link.LocationID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting location: %s", err))
+		return fmt.Errorf("Error setting location: %s", err)
 	}
 	if err = d.Set("ws_endpoint", link.WsEndpoint); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting ws_endpoint: %s", err))
+		return fmt.Errorf("Error setting ws_endpoint: %s", err)
 	}
 	if err = d.Set("description", link.Desc); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("satellite_link_host", link.SatelliteLinkHost); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting satellite_link_host: %s", err))
+		return fmt.Errorf("Error setting satellite_link_host: %s", err)
 	}
 	if err = d.Set("status", link.Status); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting status: %s", err))
+		return fmt.Errorf("Error setting status: %s", err)
 	}
 	if err = d.Set("created_at", link.CreatedAt); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("last_change", link.LastChange); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting last_change: %s", err))
+		return fmt.Errorf("Error setting last_change: %s", err)
 	}
 	if link.Performance != nil {
 		performanceMap := resourceIbmSatelliteLinkLocationPerformanceToMap(*link.Performance)
@@ -276,10 +275,10 @@ func resourceIbmSatelliteLinkLocationPerformanceConnectorsItemToMap(locationPerf
 	return locationPerformanceConnectorsItemMap
 }
 
-func resourceIbmSatelliteLinkUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteLinkUpdate(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateLinkOptions := &satellitelinkv1.UpdateLinkOptions{}
@@ -294,30 +293,30 @@ func resourceIbmSatelliteLinkUpdate(context context.Context, d *schema.ResourceD
 	}
 
 	if hasChange {
-		_, response, err := satelliteLinkClient.UpdateLinkWithContext(context, updateLinkOptions)
+		_, response, err := satelliteLinkClient.UpdateLinkWithContext(context.TODO(), updateLinkOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateLinkWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("UpdateLinkWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("UpdateLinkWithContext failed %s\n%s", err, response)
 		}
 	}
 
-	return resourceIbmSatelliteLinkRead(context, d, meta)
+	return resourceIbmSatelliteLinkRead(d, meta)
 }
 
-func resourceIbmSatelliteLinkDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmSatelliteLinkDelete(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteLinkOptions := &satellitelinkv1.DeleteLinkOptions{}
 
 	deleteLinkOptions.SetLocationID(d.Id())
 
-	_, response, err := satelliteLinkClient.DeleteLinkWithContext(context, deleteLinkOptions)
+	_, response, err := satelliteLinkClient.DeleteLinkWithContext(context.TODO(), deleteLinkOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteLinkWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteLinkWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteLinkWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

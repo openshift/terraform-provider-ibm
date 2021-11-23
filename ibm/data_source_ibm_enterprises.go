@@ -8,15 +8,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/enterprisemanagementv1"
 )
 
 func dataSourceIbmEnterprises() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmEnterprisesRead,
+		Read: dataSourceIbmEnterprisesRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -103,18 +102,18 @@ func dataSourceIbmEnterprises() *schema.Resource {
 	}
 }
 
-func dataSourceIbmEnterprisesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmEnterprisesRead(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listEnterprisesOptions := &enterprisemanagementv1.ListEnterprisesOptions{}
 
-	listEnterprisesResponse, response, err := enterpriseManagementClient.ListEnterprisesWithContext(context, listEnterprisesOptions)
+	listEnterprisesResponse, response, err := enterpriseManagementClient.ListEnterprisesWithContext(context.TODO(), listEnterprisesOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListEnterprisesWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	// Use the provided filter argument and construct a new list with only the requested resource(s)
@@ -136,7 +135,7 @@ func dataSourceIbmEnterprisesRead(context context.Context, d *schema.ResourceDat
 	listEnterprisesResponse.Resources = matchResources
 
 	if len(listEnterprisesResponse.Resources) == 0 {
-		return diag.FromErr(fmt.Errorf("no Resources found with name %s\nIf not specified, please specify more filters", name))
+		return fmt.Errorf("no Resources found with name %s\nIf not specified, please specify more filters", name)
 	}
 
 	if suppliedFilter {
@@ -148,7 +147,7 @@ func dataSourceIbmEnterprisesRead(context context.Context, d *schema.ResourceDat
 	if listEnterprisesResponse.Resources != nil {
 		err = d.Set("enterprises", dataSourceListEnterprisesResponseFlattenResources(listEnterprisesResponse.Resources))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting resources %s", err))
+			return fmt.Errorf("Error setting resources %s", err)
 		}
 	}
 

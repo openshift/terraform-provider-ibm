@@ -6,21 +6,20 @@ import (
 	"fmt"
 	"github.com/IBM-Cloud/bluemix-go/helpers"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"log"
 	"strings"
 )
 
 func resourceIBMAppIDCloudDirectoryTemplate() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMAppIDCloudDirectoryTemplateCreate,
-		ReadContext:   resourceIBMAppIDCloudDirectoryTemplateRead,
-		DeleteContext: resourceIBMAppIDCloudDirectoryTemplateDelete,
-		UpdateContext: resourceIBMAppIDCloudDirectoryTemplateUpdate,
+		Create: resourceIBMAppIDCloudDirectoryTemplateCreate,
+		Read:   resourceIBMAppIDCloudDirectoryTemplateRead,
+		Delete: resourceIBMAppIDCloudDirectoryTemplateDelete,
+		Update: resourceIBMAppIDCloudDirectoryTemplateUpdate,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			State: schema.ImportStatePassthrough,
 		},
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
@@ -67,25 +66,25 @@ func resourceIBMAppIDCloudDirectoryTemplate() *schema.Resource {
 	}
 }
 
-func resourceIBMAppIDCloudDirectoryTemplateRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryTemplateRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	id := d.Id()
 	idParts := strings.Split(id, "/")
 
 	if len(idParts) < 3 {
-		return diag.Errorf("Incorrect ID %s: ID should be a combination of tenantID/templateName/language", id)
+		return fmt.Errorf("Incorrect ID %s: ID should be a combination of tenantID/templateName/language", id)
 	}
 
 	tenantID := idParts[0]
 	templateName := idParts[1]
 	language := idParts[2]
 
-	template, resp, err := appIDClient.GetTemplateWithContext(ctx, &appid.GetTemplateOptions{
+	template, resp, err := appIDClient.GetTemplateWithContext(context.TODO(), &appid.GetTemplateOptions{
 		TenantID:     &tenantID,
 		TemplateName: &templateName,
 		Language:     &language,
@@ -98,7 +97,7 @@ func resourceIBMAppIDCloudDirectoryTemplateRead(ctx context.Context, d *schema.R
 			return nil
 		}
 
-		return diag.Errorf("Error loading AppID Cloud Directory template: %s\n%s", err, resp)
+		return fmt.Errorf("Error loading AppID Cloud Directory template: %s\n%s", err, resp)
 	}
 
 	if template.Subject != nil {
@@ -124,11 +123,11 @@ func resourceIBMAppIDCloudDirectoryTemplateRead(ctx context.Context, d *schema.R
 	return nil
 }
 
-func resourceIBMAppIDCloudDirectoryTemplateCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryTemplateCreate(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
@@ -151,36 +150,36 @@ func resourceIBMAppIDCloudDirectoryTemplateCreate(ctx context.Context, d *schema
 		input.PlainTextBody = helpers.String(textBody.(string))
 	}
 
-	_, resp, err := appIDClient.UpdateTemplateWithContext(ctx, input)
+	_, resp, err := appIDClient.UpdateTemplateWithContext(context.TODO(), input)
 
 	if err != nil {
-		return diag.Errorf("Error updating AppID Cloud Directory email template: %s\n%s", err, resp)
+		return fmt.Errorf("Error updating AppID Cloud Directory email template: %s\n%s", err, resp)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s/%s", tenantID, templateName, language))
 
-	return resourceIBMAppIDCloudDirectoryTemplateRead(ctx, d, meta)
+	return resourceIBMAppIDCloudDirectoryTemplateRead(d, meta)
 }
 
-func resourceIBMAppIDCloudDirectoryTemplateDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryTemplateDelete(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	templateName := d.Get("template_name").(string)
 	language := d.Get("language").(string)
 
-	resp, err := appIDClient.DeleteTemplateWithContext(ctx, &appid.DeleteTemplateOptions{
+	resp, err := appIDClient.DeleteTemplateWithContext(context.TODO(), &appid.DeleteTemplateOptions{
 		TenantID:     &tenantID,
 		TemplateName: &templateName,
 		Language:     &language,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error deleting AppID Cloud Directory email template: %s\n%s", err, resp)
+		return fmt.Errorf("Error deleting AppID Cloud Directory email template: %s\n%s", err, resp)
 	}
 
 	d.SetId("")
@@ -188,7 +187,7 @@ func resourceIBMAppIDCloudDirectoryTemplateDelete(ctx context.Context, d *schema
 	return nil
 }
 
-func resourceIBMAppIDCloudDirectoryTemplateUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+func resourceIBMAppIDCloudDirectoryTemplateUpdate(d *schema.ResourceData, m interface{}) error {
 	// this is just a configuration, can reuse create method
-	return resourceIBMAppIDCloudDirectoryTemplateCreate(ctx, d, m)
+	return resourceIBMAppIDCloudDirectoryTemplateCreate(d, m)
 }

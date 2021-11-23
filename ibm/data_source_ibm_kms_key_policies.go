@@ -5,18 +5,19 @@ package ibm
 
 import (
 	"context"
+	"fmt"
+
 	"log"
 	"strings"
 
 	//kp "github.com/IBM/keyprotect-go-client"
 	rc "github.com/IBM/platform-services-go-sdk/resourcecontrollerv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMKMSkeyPolicies() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMKMSKeyPoliciesRead,
+		Read: dataSourceIBMKMSKeyPoliciesRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance_id": {
@@ -145,10 +146,10 @@ func dataSourceIBMKMSkeyPolicies() *schema.Resource {
 	}
 }
 
-func dataSourceIBMKMSKeyPoliciesRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMKMSKeyPoliciesRead(d *schema.ResourceData, meta interface{}) error {
 	api, err := meta.(ClientSession).keyManagementAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	instanceID := d.Get("instance_id").(string)
@@ -161,7 +162,7 @@ func dataSourceIBMKMSKeyPoliciesRead(context context.Context, d *schema.Resource
 
 	rsConClient, err := meta.(ClientSession).ResourceControllerV2API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	resourceInstanceGet := rc.GetResourceInstanceOptions{
 		ID: &instanceID,
@@ -169,19 +170,19 @@ func dataSourceIBMKMSKeyPoliciesRead(context context.Context, d *schema.Resource
 
 	instanceData, resp, err := rsConClient.GetResourceInstance(&resourceInstanceGet)
 	if err != nil || instanceData == nil {
-		return diag.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
+		return fmt.Errorf("[ERROR] Error retrieving resource instance: %s with resp code: %s", err, resp)
 	}
 	extensions := instanceData.Extensions
 	URL, err := KmsEndpointURL(api, endpointType, extensions)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	api.URL = URL
 
 	api.Config.InstanceID = instanceID
-	policies, err := api.GetPolicies(context, key_id)
+	policies, err := api.GetPolicies(context.TODO(), key_id)
 	if err != nil {
-		return diag.Errorf("Failed to read policies: %s", err)
+		return fmt.Errorf("Failed to read policies: %s", err)
 	}
 
 	if len(policies) == 0 {

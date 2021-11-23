@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsDedicatedHostGroup() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsDedicatedHostGroupRead,
+		Read: dataSourceIbmIsDedicatedHostGroupRead,
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -135,18 +134,18 @@ func dataSourceIbmIsDedicatedHostGroup() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsDedicatedHostGroupRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsDedicatedHostGroupRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listDedicatedHostGroupsOptions := &vpcv1.ListDedicatedHostGroupsOptions{}
 
-	dedicatedHostGroupCollection, response, err := vpcClient.ListDedicatedHostGroupsWithContext(context, listDedicatedHostGroupsOptions)
+	dedicatedHostGroupCollection, response, err := vpcClient.ListDedicatedHostGroupsWithContext(context.TODO(), listDedicatedHostGroupsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] ListDedicatedHostGroupsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	name := d.Get("name").(string)
@@ -159,59 +158,59 @@ func dataSourceIbmIsDedicatedHostGroupRead(context context.Context, d *schema.Re
 				dedicatedHostGroup = data
 				d.SetId(*dedicatedHostGroup.ID)
 				if err = d.Set("class", dedicatedHostGroup.Class); err != nil {
-					return diag.FromErr(fmt.Errorf("Error setting class: %s", err))
+					return fmt.Errorf("Error setting class: %s", err)
 				}
 				if dedicatedHostGroup.CreatedAt != nil {
 					if err = d.Set("created_at", dedicatedHostGroup.CreatedAt.String()); err != nil {
-						return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+						return fmt.Errorf("Error setting created_at: %s", err)
 					}
 				}
 
 				if err = d.Set("crn", dedicatedHostGroup.CRN); err != nil {
-					return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+					return fmt.Errorf("Error setting crn: %s", err)
 				}
 
 				if dedicatedHostGroup.DedicatedHosts != nil {
 					err = d.Set("dedicated_hosts", dataSourceDedicatedHostGroupFlattenDedicatedHosts(dedicatedHostGroup.DedicatedHosts))
 					if err != nil {
-						return diag.FromErr(fmt.Errorf("Error setting dedicated_hosts %s", err))
+						return fmt.Errorf("Error setting dedicated_hosts %s", err)
 					}
 				}
 				if err = d.Set("family", dedicatedHostGroup.Family); err != nil {
-					return diag.FromErr(fmt.Errorf("Error setting family: %s", err))
+					return fmt.Errorf("Error setting family: %s", err)
 				}
 				if err = d.Set("href", dedicatedHostGroup.Href); err != nil {
-					return diag.FromErr(fmt.Errorf("Error setting href: %s", err))
+					return fmt.Errorf("Error setting href: %s", err)
 				}
 
 				if dedicatedHostGroup.ResourceGroup != nil {
 					err = d.Set("resource_group", *dedicatedHostGroup.ResourceGroup.ID)
 					if err != nil {
-						return diag.FromErr(fmt.Errorf("Error setting resource_group %s", err))
+						return fmt.Errorf("Error setting resource_group %s", err)
 					}
 				}
 				if err = d.Set("resource_type", dedicatedHostGroup.ResourceType); err != nil {
-					return diag.FromErr(fmt.Errorf("Error setting resource_type: %s", err))
+					return fmt.Errorf("Error setting resource_type: %s", err)
 				}
 
 				if dedicatedHostGroup.SupportedInstanceProfiles != nil {
 					err = d.Set("supported_instance_profiles", dataSourceDedicatedHostGroupFlattenSupportedInstanceProfiles(dedicatedHostGroup.SupportedInstanceProfiles))
 					if err != nil {
-						return diag.FromErr(fmt.Errorf("Error setting supported_instance_profiles %s", err))
+						return fmt.Errorf("Error setting supported_instance_profiles %s", err)
 					}
 				}
 
 				if dedicatedHostGroup.Zone != nil {
 					err = d.Set("zone", *dedicatedHostGroup.Zone.Name)
 					if err != nil {
-						return diag.FromErr(fmt.Errorf("Error setting zone %s", err))
+						return fmt.Errorf("Error setting zone %s", err)
 					}
 				}
 				return nil
 			}
 		}
 	}
-	return diag.FromErr(fmt.Errorf("No Dedicated Host Group found with name %s", name))
+	return fmt.Errorf("No Dedicated Host Group found with name %s", name)
 }
 
 func dataSourceDedicatedHostGroupFlattenDedicatedHosts(result []vpcv1.DedicatedHostReference) (dedicatedHosts []map[string]interface{}) {

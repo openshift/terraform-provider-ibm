@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 const (
@@ -24,7 +23,7 @@ const (
 
 func dataSourceIBMISVPCs() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMISVPCListRead,
+		Read: dataSourceIBMISVPCListRead,
 		Schema: map[string]*schema.Schema{
 			isVPCs: {
 				Type:        schema.TypeList,
@@ -297,10 +296,10 @@ func dataSourceIBMISVPCs() *schema.Resource {
 	}
 }
 
-func dataSourceIBMISVPCListRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMISVPCListRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	start := ""
 	allrecs := []vpcv1.VPC{}
@@ -310,10 +309,10 @@ func dataSourceIBMISVPCListRead(context context.Context, d *schema.ResourceData,
 		if start != "" {
 			listOptions.Start = &start
 		}
-		result, detail, err := sess.ListVpcsWithContext(context, listOptions)
+		result, detail, err := sess.ListVpcsWithContext(context.TODO(), listOptions)
 		if err != nil {
 			log.Printf("Error reading list of VPCs:%s\n%s", err, detail)
-			return diag.FromErr(err)
+			return err
 		}
 		start = GetNext(result.Next)
 		allrecs = append(allrecs, result.Vpcs...)
@@ -360,7 +359,7 @@ func dataSourceIBMISVPCListRead(context context.Context, d *schema.ResourceData,
 
 		controller, err := getBaseController(meta)
 		if err != nil {
-			return diag.FromErr(err)
+			return err
 		}
 		l[ResourceControllerURL] = controller + "/vpc-ext/network/vpcs"
 
@@ -390,9 +389,9 @@ func dataSourceIBMISVPCListRead(context context.Context, d *schema.ResourceData,
 			if startSub != "" {
 				options.Start = &start
 			}
-			s, response, err := sess.ListSubnetsWithContext(context, options)
+			s, response, err := sess.ListSubnetsWithContext(context.TODO(), options)
 			if err != nil {
-				return diag.FromErr(fmt.Errorf("Error fetching subnets %s\n%s", err, response))
+				return fmt.Errorf("Error fetching subnets %s\n%s", err, response)
 			}
 			start = GetNext(s.Next)
 			allrecsSub = append(allrecsSub, s.Subnets...)
@@ -431,9 +430,9 @@ func dataSourceIBMISVPCListRead(context context.Context, d *schema.ResourceData,
 			if startSg != "" {
 				listSgOptions.Start = &start
 			}
-			sgs, response, err := sess.ListSecurityGroupsWithContext(context, listSgOptions)
+			sgs, response, err := sess.ListSecurityGroupsWithContext(context.TODO(), listSgOptions)
 			if err != nil {
-				return diag.FromErr(fmt.Errorf("Error fetching Security Groups %s\n%s", err, response))
+				return fmt.Errorf("Error fetching Security Groups %s\n%s", err, response)
 			}
 			if *sgs.TotalCount == int64(0) {
 				break

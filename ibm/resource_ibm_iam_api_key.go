@@ -4,23 +4,21 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
 
 func resourceIbmIamApiKey() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmIamApiKeyCreate,
-		ReadContext:   resourceIbmIamApiKeyRead,
-		UpdateContext: resourceIbmIamApiKeyUpdate,
-		DeleteContext: resourceIbmIamApiKeyDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmIamApiKeyCreate,
+		Read:     resourceIbmIamApiKeyRead,
+		Update:   resourceIbmIamApiKeyUpdate,
+		Delete:   resourceIbmIamApiKeyDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -106,17 +104,17 @@ func resourceIbmIamApiKey() *schema.Resource {
 	}
 }
 
-func resourceIbmIamApiKeyCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamApiKeyCreate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createApiKeyOptions := &iamidentityv1.CreateAPIKeyOptions{}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	iamID := userDetails.userID
 	accountID := userDetails.userAccount
@@ -141,7 +139,7 @@ func resourceIbmIamApiKeyCreate(context context.Context, d *schema.ResourceData,
 	apiKey, response, err := iamIdentityClient.CreateAPIKey(createApiKeyOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateApiKey failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*apiKey.ID)
@@ -153,13 +151,13 @@ func resourceIbmIamApiKeyCreate(context context.Context, d *schema.ResourceData,
 		}
 	}
 
-	return resourceIbmIamApiKeyRead(context, d, meta)
+	return resourceIbmIamApiKeyRead(d, meta)
 }
 
-func resourceIbmIamApiKeyRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamApiKeyRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getApiKeyOptions := &iamidentityv1.GetAPIKeyOptions{}
@@ -173,50 +171,50 @@ func resourceIbmIamApiKeyRead(context context.Context, d *schema.ResourceData, m
 			return nil
 		}
 		log.Printf("[DEBUG] GetApiKey failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	if err = d.Set("name", apiKey.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("iam_id", apiKey.IamID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting iam_id: %s", err))
+		return fmt.Errorf("Error setting iam_id: %s", err)
 	}
 	if err = d.Set("description", apiKey.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("account_id", apiKey.AccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting account_id: %s", err))
+		return fmt.Errorf("Error setting account_id: %s", err)
 	}
 	if err = d.Set("locked", apiKey.Locked); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_lock: %s", err))
+		return fmt.Errorf("Error setting entity_lock: %s", err)
 	}
 	if err = d.Set("apikey_id", apiKey.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting id: %s", err))
+		return fmt.Errorf("Error setting id: %s", err)
 	}
 	if err = d.Set("entity_tag", apiKey.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("crn", apiKey.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("created_at", apiKey.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", apiKey.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("modified_at", apiKey.ModifiedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 
 	return nil
 }
 
-func resourceIbmIamApiKeyUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamApiKeyUpdate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateApiKeyOptions := &iamidentityv1.UpdateAPIKeyOptions{}
@@ -230,16 +228,16 @@ func resourceIbmIamApiKeyUpdate(context context.Context, d *schema.ResourceData,
 	_, response, err := iamIdentityClient.UpdateAPIKey(updateApiKeyOptions)
 	if err != nil {
 		log.Printf("[DEBUG] UpdateApiKey failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
-	return resourceIbmIamApiKeyRead(context, d, meta)
+	return resourceIbmIamApiKeyRead(d, meta)
 }
 
-func resourceIbmIamApiKeyDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmIamApiKeyDelete(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteApiKeyOptions := &iamidentityv1.DeleteAPIKeyOptions{}
@@ -249,7 +247,7 @@ func resourceIbmIamApiKeyDelete(context context.Context, d *schema.ResourceData,
 	response, err := iamIdentityClient.DeleteAPIKey(deleteApiKeyOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteApiKey failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId("")

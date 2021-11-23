@@ -9,13 +9,12 @@ import (
 	"log"
 
 	"github.com/IBM-Cloud/container-services-go-sdk/satellitelinkv1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIbmSatelliteLink() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmSatelliteLinkRead,
+		Read: dataSourceIbmSatelliteLinkRead,
 
 		Schema: map[string]*schema.Schema{
 			"location": &schema.Schema{
@@ -131,49 +130,49 @@ func dataSourceIbmSatelliteLink() *schema.Resource {
 	}
 }
 
-func dataSourceIbmSatelliteLinkRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmSatelliteLinkRead(d *schema.ResourceData, meta interface{}) error {
 	satelliteLinkClient, err := meta.(ClientSession).SatellitLinkClientSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getLinkOptions := &satellitelinkv1.GetLinkOptions{}
 
 	getLinkOptions.SetLocationID(d.Get("location").(string))
 
-	location, response, err := satelliteLinkClient.GetLinkWithContext(context, getLinkOptions)
+	location, response, err := satelliteLinkClient.GetLinkWithContext(context.TODO(), getLinkOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetLinkWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetLinkWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetLinkWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*location.LocationID)
 	if err = d.Set("ws_endpoint", location.WsEndpoint); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting ws_endpoint: %s", err))
+		return fmt.Errorf("Error setting ws_endpoint: %s", err)
 	}
 	if err = d.Set("crn", location.Crn); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("description", location.Desc); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("satellite_link_host", location.SatelliteLinkHost); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting satellite_link_host: %s", err))
+		return fmt.Errorf("Error setting satellite_link_host: %s", err)
 	}
 	if err = d.Set("status", location.Status); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting status: %s", err))
+		return fmt.Errorf("Error setting status: %s", err)
 	}
 	if err = d.Set("created_at", location.CreatedAt); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("last_change", location.LastChange); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting last_change: %s", err))
+		return fmt.Errorf("Error setting last_change: %s", err)
 	}
 
 	if location.Performance != nil {
 		err = d.Set("performance", dataSourceLocationFlattenPerformance(*location.Performance))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting performance %s", err))
+			return fmt.Errorf("Error setting performance %s", err)
 		}
 	}
 

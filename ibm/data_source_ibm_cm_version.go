@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/catalogmanagementv1"
 )
 
 func dataSourceIBMCmVersion() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMCmVersionRead,
+		Read: dataSourceIBMCmVersionRead,
 
 		Schema: map[string]*schema.Schema{
 			"version_loc_id": &schema.Schema{
@@ -64,45 +63,45 @@ func dataSourceIBMCmVersion() *schema.Resource {
 	}
 }
 
-func dataSourceIBMCmVersionRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMCmVersionRead(d *schema.ResourceData, meta interface{}) error {
 	catalogManagementClient, err := meta.(ClientSession).CatalogManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getVersionOptions := &catalogmanagementv1.GetVersionOptions{}
 
 	getVersionOptions.SetVersionLocID(d.Get("version_loc_id").(string))
 
-	offering, response, err := catalogManagementClient.GetVersionWithContext(context, getVersionOptions)
+	offering, response, err := catalogManagementClient.GetVersionWithContext(context.TODO(), getVersionOptions)
 	version := offering.Kinds[0].Versions[0]
 
 	if err != nil {
 		log.Printf("[DEBUG] GetVersionWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*version.VersionLocator)
 	if err = d.Set("crn", version.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("version", version.Version); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting version: %s", err))
+		return fmt.Errorf("Error setting version: %s", err)
 	}
 	if err = d.Set("sha", version.Sha); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting sha: %s", err))
+		return fmt.Errorf("Error setting sha: %s", err)
 	}
 	if err = d.Set("catalog_id", version.CatalogID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting catalog_id: %s", err))
+		return fmt.Errorf("Error setting catalog_id: %s", err)
 	}
 	if err = d.Set("repo_url", version.RepoURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting repo_url: %s", err))
+		return fmt.Errorf("Error setting repo_url: %s", err)
 	}
 	if err = d.Set("source_url", version.SourceURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting source_url: %s", err))
+		return fmt.Errorf("Error setting source_url: %s", err)
 	}
 	if err = d.Set("tgz_url", version.TgzURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting tgz_url: %s", err))
+		return fmt.Errorf("Error setting tgz_url: %s", err)
 	}
 
 	return nil

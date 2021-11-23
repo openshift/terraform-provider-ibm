@@ -8,19 +8,18 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/enterprisemanagementv1"
 )
 
 func resourceIbmEnterpriseAccountGroup() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIbmEnterpriseAccountGroupCreate,
-		ReadContext:   resourceIbmEnterpriseAccountGroupRead,
-		UpdateContext: resourceIbmEnterpriseAccountGroupUpdate,
-		DeleteContext: resourceIbmEnterpriseAccountGroupDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIbmEnterpriseAccountGroupCreate,
+		Read:     resourceIbmEnterpriseAccountGroupRead,
+		Update:   resourceIbmEnterpriseAccountGroupUpdate,
+		Delete:   resourceIbmEnterpriseAccountGroupDelete,
+		Importer: &schema.ResourceImporter{},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(30 * time.Minute),
 			Update: schema.DefaultTimeout(20 * time.Minute),
@@ -103,10 +102,10 @@ func resourceIbmEnterpriseAccountGroup() *schema.Resource {
 	}
 }
 
-func resourceIbmEnterpriseAccountGroupCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseAccountGroupCreate(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createAccountGroupOptions := &enterprisemanagementv1.CreateAccountGroupOptions{}
@@ -115,91 +114,91 @@ func resourceIbmEnterpriseAccountGroupCreate(context context.Context, d *schema.
 	createAccountGroupOptions.SetName(d.Get("name").(string))
 	createAccountGroupOptions.SetPrimaryContactIamID(d.Get("primary_contact_iam_id").(string))
 
-	createAccountGroupResponse, response, err := enterpriseManagementClient.CreateAccountGroupWithContext(context, createAccountGroupOptions)
+	createAccountGroupResponse, response, err := enterpriseManagementClient.CreateAccountGroupWithContext(context.TODO(), createAccountGroupOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateAccountGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(*createAccountGroupResponse.AccountGroupID)
 
-	return resourceIbmEnterpriseAccountGroupRead(context, d, meta)
+	return resourceIbmEnterpriseAccountGroupRead(d, meta)
 }
 
-func resourceIbmEnterpriseAccountGroupRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseAccountGroupRead(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getAccountGroupOptions := &enterprisemanagementv1.GetAccountGroupOptions{}
 
 	getAccountGroupOptions.SetAccountGroupID(d.Id())
 
-	accountGroup, response, err := enterpriseManagementClient.GetAccountGroupWithContext(context, getAccountGroupOptions)
+	accountGroup, response, err := enterpriseManagementClient.GetAccountGroupWithContext(context.TODO(), getAccountGroupOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetAccountGroupWithContext failed %s\n%s", err, response)
-		return diag.FromErr(err)
+		return err
 	}
 	log.Printf("[DEBUG] GetAccountGroupWithContext testing %s", response)
 	if err = d.Set("parent", accountGroup.Parent); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting parent: %s", err))
+		return fmt.Errorf("Error setting parent: %s", err)
 	}
 	if err = d.Set("name", accountGroup.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("primary_contact_iam_id", accountGroup.PrimaryContactIamID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting primary_contact_iam_id: %s", err))
+		return fmt.Errorf("Error setting primary_contact_iam_id: %s", err)
 	}
 	if err = d.Set("url", accountGroup.URL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting url: %s", err))
+		return fmt.Errorf("Error setting url: %s", err)
 	}
 	if err = d.Set("crn", accountGroup.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("enterprise_account_id", accountGroup.EnterpriseAccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting enterprise_account_id: %s", err))
+		return fmt.Errorf("Error setting enterprise_account_id: %s", err)
 	}
 	if err = d.Set("enterprise_id", accountGroup.EnterpriseID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting enterprise_id: %s", err))
+		return fmt.Errorf("Error setting enterprise_id: %s", err)
 	}
 	if err = d.Set("enterprise_path", accountGroup.EnterprisePath); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting enterprise_path: %s", err))
+		return fmt.Errorf("Error setting enterprise_path: %s", err)
 	}
 	if err = d.Set("state", accountGroup.State); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting state: %s", err))
+		return fmt.Errorf("Error setting state: %s", err)
 	}
 	if err = d.Set("primary_contact_email", accountGroup.PrimaryContactEmail); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting primary_contact_email: %s", err))
+		return fmt.Errorf("Error setting primary_contact_email: %s", err)
 	}
 	if err = d.Set("created_at", accountGroup.CreatedAt.String()); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", accountGroup.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if accountGroup.UpdatedAt != nil {
 		if err = d.Set("updated_at", accountGroup.UpdatedAt.String()); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+			return fmt.Errorf("Error setting updated_at: %s", err)
 		}
 	}
 	if accountGroup.UpdatedBy != nil {
 		if err = d.Set("updated_by", accountGroup.UpdatedBy); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+			return fmt.Errorf("Error setting updated_by: %s", err)
 		}
 	}
 
 	return nil
 }
 
-func resourceIbmEnterpriseAccountGroupUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseAccountGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 	enterpriseManagementClient, err := meta.(ClientSession).EnterpriseManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateAccountGroupOptions := &enterprisemanagementv1.UpdateAccountGroupOptions{}
@@ -222,17 +221,17 @@ func resourceIbmEnterpriseAccountGroupUpdate(context context.Context, d *schema.
 	}
 
 	if hasChange {
-		response, err := enterpriseManagementClient.UpdateAccountGroupWithContext(context, updateAccountGroupOptions)
+		response, err := enterpriseManagementClient.UpdateAccountGroupWithContext(context.TODO(), updateAccountGroupOptions)
 		if err != nil {
 			log.Printf("[DEBUG] UpdateAccountGroupWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 	}
 
-	return resourceIbmEnterpriseAccountGroupRead(context, d, meta)
+	return resourceIbmEnterpriseAccountGroupRead(d, meta)
 }
 
-func resourceIbmEnterpriseAccountGroupDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIbmEnterpriseAccountGroupDelete(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId("")
 

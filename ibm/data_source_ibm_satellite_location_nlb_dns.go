@@ -4,16 +4,14 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMSatelliteLocationNLBDNS() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSatelliteLocationNLBDNSRead,
+		Read: dataSourceIBMSatelliteLocationNLBDNSRead,
 
 		Schema: map[string]*schema.Schema{
 			"location": {
@@ -80,18 +78,18 @@ func dataSourceIBMSatelliteLocationNLBDNS() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSatelliteLocationNLBDNSRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSatelliteLocationNLBDNSRead(d *schema.ResourceData, meta interface{}) error {
 
 	location := d.Get("location").(string)
 
 	satClient, err := meta.(ClientSession).VpcContainerAPI()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	nlbData, err := satClient.NlbDns().GetLocationNLBDNSList(location)
 	if err != nil || nlbData == nil || len(nlbData) < 1 {
-		return diag.FromErr(fmt.Errorf("[ERROR] Error Listing Satellite NLB DNS (%s): %s", location, err))
+		return fmt.Errorf("[ERROR] Error Listing Satellite NLB DNS (%s): %s", location, err)
 	}
 	d.SetId(location)
 	d.Set("location", location)

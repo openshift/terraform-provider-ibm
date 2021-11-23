@@ -9,8 +9,7 @@ import (
 	"log"
 
 	"github.com/go-openapi/strfmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/schematics-go-sdk/schematicsv1"
@@ -18,11 +17,11 @@ import (
 
 func resourceIBMSchematicsJob() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMSchematicsJobCreate,
-		ReadContext:   resourceIBMSchematicsJobRead,
-		UpdateContext: resourceIBMSchematicsJobUpdate,
-		DeleteContext: resourceIBMSchematicsJobDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMSchematicsJobCreate,
+		Read:     resourceIBMSchematicsJobRead,
+		Update:   resourceIBMSchematicsJobUpdate,
+		Delete:   resourceIBMSchematicsJobDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"command_object": &schema.Schema{
@@ -2840,15 +2839,15 @@ func resourceIBMSchematicsJobValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMSchematicsJobCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsJobCreate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	session, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	iamRefreshToken := session.Config.IAMRefreshToken
@@ -2924,15 +2923,15 @@ func resourceIBMSchematicsJobCreate(context context.Context, d *schema.ResourceD
 		}
 	}
 
-	job, response, err := schematicsClient.CreateJobWithContext(context, createJobOptions)
+	job, response, err := schematicsClient.CreateJobWithContext(context.TODO(), createJobOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateJobWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateJobWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateJobWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*job.ID)
 
-	return resourceIBMSchematicsJobRead(context, d, meta)
+	return resourceIBMSchematicsJobRead(d, meta)
 }
 
 func resourceIBMSchematicsJobMapToVariableData(variableDataMap map[string]interface{}) schematicsv1.VariableData {
@@ -3850,43 +3849,43 @@ func resourceIBMSchematicsJobMapToJobLogSummarySystemJob(jobLogSummarySystemJobM
 	return jobLogSummarySystemJob
 }
 
-func resourceIBMSchematicsJobRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsJobRead(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getJobOptions := &schematicsv1.GetJobOptions{}
 
 	getJobOptions.SetJobID(d.Id())
 
-	job, response, err := schematicsClient.GetJobWithContext(context, getJobOptions)
+	job, response, err := schematicsClient.GetJobWithContext(context.TODO(), getJobOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetJobWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetJobWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetJobWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("command_object", job.CommandObject); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting command_object: %s", err))
+		return fmt.Errorf("Error setting command_object: %s", err)
 	}
 	if err = d.Set("command_object_id", job.CommandObjectID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting command_object_id: %s", err))
+		return fmt.Errorf("Error setting command_object_id: %s", err)
 	}
 	if err = d.Set("command_name", job.CommandName); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting command_name: %s", err))
+		return fmt.Errorf("Error setting command_name: %s", err)
 	}
 	if _, ok := d.GetOk("command_parameter"); ok {
 		if err = d.Set("command_parameter", d.Get("command_parameter").(string)); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting command_parameter: %s", err))
+			return fmt.Errorf("Error setting command_parameter: %s", err)
 		}
 	}
 	if job.CommandOptions != nil {
 		if err = d.Set("command_options", job.CommandOptions); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting command_options: %s", err))
+			return fmt.Errorf("Error setting command_options: %s", err)
 		}
 	}
 	if job.Inputs != nil {
@@ -3896,7 +3895,7 @@ func resourceIBMSchematicsJobRead(context context.Context, d *schema.ResourceDat
 			jobInputs = append(jobInputs, jobInputsItemMap)
 		}
 		if err = d.Set("job_inputs", jobInputs); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting job_inputs: %s", err))
+			return fmt.Errorf("Error setting job_inputs: %s", err)
 		}
 	}
 	if job.Settings != nil {
@@ -3906,76 +3905,76 @@ func resourceIBMSchematicsJobRead(context context.Context, d *schema.ResourceDat
 			jobEnvSettings = append(jobEnvSettings, jobEnvSettingsItemMap)
 		}
 		if err = d.Set("job_env_settings", jobEnvSettings); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting job_env_settings: %s", err))
+			return fmt.Errorf("Error setting job_env_settings: %s", err)
 		}
 	}
 	if job.Tags != nil {
 		if err = d.Set("tags", job.Tags); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting tags: %s", err))
+			return fmt.Errorf("Error setting tags: %s", err)
 		}
 	}
 	if err = d.Set("location", job.Location); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting location: %s", err))
+		return fmt.Errorf("Error setting location: %s", err)
 	}
 	if job.Status != nil {
 		statusMap := resourceIBMSchematicsJobJobStatusToMap(*job.Status)
 		if err = d.Set("status", []map[string]interface{}{statusMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting status: %s", err))
+			return fmt.Errorf("Error setting status: %s", err)
 		}
 	}
 	if job.Data != nil {
 		dataMap := resourceIBMSchematicsJobJobDataToMap(*job.Data)
 		if err = d.Set("data", []map[string]interface{}{dataMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting data: %s", err))
+			return fmt.Errorf("Error setting data: %s", err)
 		}
 	}
 	if job.Bastion != nil {
 		bastionMap := resourceIBMSchematicsJobBastionResourceDefinitionToMap(*job.Bastion)
 		if err = d.Set("bastion", []map[string]interface{}{bastionMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting bastion: %s", err))
+			return fmt.Errorf("Error setting bastion: %s", err)
 		}
 	}
 	if job.LogSummary != nil {
 		logSummaryMap := resourceIBMSchematicsJobJobLogSummaryToMap(*job.LogSummary)
 		if err = d.Set("log_summary", []map[string]interface{}{logSummaryMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting log_summary: %s", err))
+			return fmt.Errorf("Error setting log_summary: %s", err)
 		}
 	}
 	if err = d.Set("name", job.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("description", job.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("resource_group", job.ResourceGroup); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting resource_group: %s", err))
+		return fmt.Errorf("Error setting resource_group: %s", err)
 	}
 	if err = d.Set("submitted_at", dateTimeToString(job.SubmittedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting submitted_at: %s", err))
+		return fmt.Errorf("Error setting submitted_at: %s", err)
 	}
 	if err = d.Set("submitted_by", job.SubmittedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting submitted_by: %s", err))
+		return fmt.Errorf("Error setting submitted_by: %s", err)
 	}
 	if err = d.Set("start_at", dateTimeToString(job.StartAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting start_at: %s", err))
+		return fmt.Errorf("Error setting start_at: %s", err)
 	}
 	if err = d.Set("end_at", dateTimeToString(job.EndAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting end_at: %s", err))
+		return fmt.Errorf("Error setting end_at: %s", err)
 	}
 	if err = d.Set("duration", job.Duration); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting duration: %s", err))
+		return fmt.Errorf("Error setting duration: %s", err)
 	}
 	if err = d.Set("log_store_url", job.LogStoreURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting log_store_url: %s", err))
+		return fmt.Errorf("Error setting log_store_url: %s", err)
 	}
 	if err = d.Set("state_store_url", job.StateStoreURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting state_store_url: %s", err))
+		return fmt.Errorf("Error setting state_store_url: %s", err)
 	}
 	if err = d.Set("results_url", job.ResultsURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting results_url: %s", err))
+		return fmt.Errorf("Error setting results_url: %s", err)
 	}
 	if err = d.Set("updated_at", dateTimeToString(job.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+		return fmt.Errorf("Error setting updated_at: %s", err)
 	}
 
 	return nil
@@ -4914,15 +4913,15 @@ func resourceIBMSchematicsJobJobLogSummarySystemJobToMap(jobLogSummarySystemJob 
 	return jobLogSummarySystemJobMap
 }
 
-func resourceIBMSchematicsJobUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsJobUpdate(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	session, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	iamRefreshToken := session.Config.IAMRefreshToken
@@ -5000,25 +4999,25 @@ func resourceIBMSchematicsJobUpdate(context context.Context, d *schema.ResourceD
 		}
 	}
 
-	_, response, err := schematicsClient.UpdateJobWithContext(context, updateJobOptions)
+	_, response, err := schematicsClient.UpdateJobWithContext(context.TODO(), updateJobOptions)
 	if err != nil {
 		log.Printf("[DEBUG] UpdateJobWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("UpdateJobWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("UpdateJobWithContext failed %s\n%s", err, response)
 	}
 
-	return resourceIBMSchematicsJobRead(context, d, meta)
+	return resourceIBMSchematicsJobRead(d, meta)
 }
 
-func resourceIBMSchematicsJobDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSchematicsJobDelete(d *schema.ResourceData, meta interface{}) error {
 
 	session, err := meta.(ClientSession).BluemixSession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteJobOptions := &schematicsv1.DeleteJobOptions{}
@@ -5028,10 +5027,10 @@ func resourceIBMSchematicsJobDelete(context context.Context, d *schema.ResourceD
 
 	deleteJobOptions.SetJobID(d.Id())
 
-	response, err := schematicsClient.DeleteJobWithContext(context, deleteJobOptions)
+	response, err := schematicsClient.DeleteJobWithContext(context.TODO(), deleteJobOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteJobWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteJobWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteJobWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

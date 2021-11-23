@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/scc-go-sdk/findingsv1"
@@ -17,11 +16,11 @@ import (
 
 func resourceIBMSccSiNote() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMSccSiNoteCreate,
-		ReadContext:   resourceIBMSccSiNoteRead,
-		UpdateContext: resourceIBMSccSiNoteUpdate,
-		DeleteContext: resourceIBMSccSiNoteDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMSccSiNoteCreate,
+		Read:     resourceIBMSccSiNoteRead,
+		Update:   resourceIBMSccSiNoteUpdate,
+		Delete:   resourceIBMSccSiNoteDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -361,15 +360,15 @@ func resourceIBMSccSiNoteValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMSccSiNoteCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiNoteCreate(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := d.Get("account_id").(string)
@@ -418,15 +417,15 @@ func resourceIBMSccSiNoteCreate(context context.Context, d *schema.ResourceData,
 		createNoteOptions.SetSection(&section)
 	}
 
-	apiNote, response, err := findingsClient.CreateNoteWithContext(context, createNoteOptions)
+	apiNote, response, err := findingsClient.CreateNoteWithContext(context.TODO(), createNoteOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateNoteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateNoteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateNoteWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s/%s", *findingsClient.AccountID, *createNoteOptions.ProviderID, *apiNote.ID))
 
-	return resourceIBMSccSiNoteRead(context, d, meta)
+	return resourceIBMSccSiNoteRead(d, meta)
 }
 
 func resourceIBMSccSiNoteMapToReporter(reporterMap map[string]interface{}) findingsv1.Reporter {
@@ -702,17 +701,17 @@ func resourceIBMSccSiNoteMapToSection(sectionMap map[string]interface{}) finding
 	return section
 }
 
-func resourceIBMSccSiNoteRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiNoteRead(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getNoteOptions := &findingsv1.GetNoteOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	findingsClient.AccountID = &parts[0]
@@ -722,34 +721,34 @@ func resourceIBMSccSiNoteRead(context context.Context, d *schema.ResourceData, m
 	getNoteOptions.SetProviderID(parts[1])
 	getNoteOptions.SetNoteID(parts[2])
 
-	apiNote, response, err := findingsClient.GetNoteWithContext(context, getNoteOptions)
+	apiNote, response, err := findingsClient.GetNoteWithContext(context.TODO(), getNoteOptions)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
 		log.Printf("[DEBUG] GetNoteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetNoteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetNoteWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("provider_id", getNoteOptions.ProviderID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting provider_id: %s", err))
+		return fmt.Errorf("Error setting provider_id: %s", err)
 	}
 	if err = d.Set("short_description", apiNote.ShortDescription); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting short_description: %s", err))
+		return fmt.Errorf("Error setting short_description: %s", err)
 	}
 	if err = d.Set("long_description", apiNote.LongDescription); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting long_description: %s", err))
+		return fmt.Errorf("Error setting long_description: %s", err)
 	}
 	if err = d.Set("kind", apiNote.Kind); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting kind: %s", err))
+		return fmt.Errorf("Error setting kind: %s", err)
 	}
 	if err = d.Set("note_id", apiNote.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting note_id: %s", err))
+		return fmt.Errorf("Error setting note_id: %s", err)
 	}
 	reportedByMap := resourceIBMSccSiNoteReporterToMap(*apiNote.ReportedBy)
 	if err = d.Set("reported_by", []map[string]interface{}{reportedByMap}); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting reported_by: %s", err))
+		return fmt.Errorf("Error setting reported_by: %s", err)
 	}
 	if apiNote.RelatedURL != nil {
 		relatedURL := []map[string]interface{}{}
@@ -758,42 +757,42 @@ func resourceIBMSccSiNoteRead(context context.Context, d *schema.ResourceData, m
 			relatedURL = append(relatedURL, relatedURLItemMap)
 		}
 		if err = d.Set("related_url", relatedURL); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting related_url: %s", err))
+			return fmt.Errorf("Error setting related_url: %s", err)
 		}
 	}
 	if err = d.Set("shared", apiNote.Shared); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting shared: %s", err))
+		return fmt.Errorf("Error setting shared: %s", err)
 	}
 	if apiNote.Finding != nil {
 		findingMap := resourceIBMSccSiNoteFindingTypeToMap(*apiNote.Finding)
 		if err = d.Set("finding", []map[string]interface{}{findingMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting finding: %s", err))
+			return fmt.Errorf("Error setting finding: %s", err)
 		}
 	}
 	if apiNote.Kpi != nil {
 		kpiMap := resourceIBMSccSiNoteKpiTypeToMap(*apiNote.Kpi)
 		if err = d.Set("kpi", []map[string]interface{}{kpiMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting kpi: %s", err))
+			return fmt.Errorf("Error setting kpi: %s", err)
 		}
 	}
 	if apiNote.Card != nil {
 		cardIntf := d.Get("card")
 		cardMap := resourceIBMSccSiNoteCardToMap(*apiNote.Card, cardIntf)
 		if err = d.Set("card", []map[string]interface{}{cardMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting card: %s", err))
+			return fmt.Errorf("Error setting card: %s", err)
 		}
 	}
 	if apiNote.Section != nil {
 		sectionMap := resourceIBMSccSiNoteSectionToMap(*apiNote.Section)
 		if err = d.Set("section", []map[string]interface{}{sectionMap}); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting section: %s", err))
+			return fmt.Errorf("Error setting section: %s", err)
 		}
 	}
 	if err = d.Set("create_time", dateTimeToString(apiNote.CreateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting create_time: %s", err))
+		return fmt.Errorf("Error setting create_time: %s", err)
 	}
 	if err = d.Set("update_time", dateTimeToString(apiNote.UpdateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting update_time: %s", err))
+		return fmt.Errorf("Error setting update_time: %s", err)
 	}
 
 	return nil
@@ -1083,17 +1082,17 @@ func resourceIBMSccSiNoteSectionToMap(section findingsv1.Section) map[string]int
 	return sectionMap
 }
 
-func resourceIBMSccSiNoteUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiNoteUpdate(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateNoteOptions := &findingsv1.UpdateNoteOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	findingsClient.AccountID = &parts[0]
@@ -1136,26 +1135,26 @@ func resourceIBMSccSiNoteUpdate(context context.Context, d *schema.ResourceData,
 		updateNoteOptions.SetSection(&section)
 	}
 
-	_, response, err := findingsClient.UpdateNoteWithContext(context, updateNoteOptions)
+	_, response, err := findingsClient.UpdateNoteWithContext(context.TODO(), updateNoteOptions)
 	if err != nil {
 		log.Printf("[DEBUG] UpdateNoteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("UpdateNoteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("UpdateNoteWithContext failed %s\n%s", err, response)
 	}
 
-	return resourceIBMSccSiNoteRead(context, d, meta)
+	return resourceIBMSccSiNoteRead(d, meta)
 }
 
-func resourceIBMSccSiNoteDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMSccSiNoteDelete(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteNoteOptions := &findingsv1.DeleteNoteOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	findingsClient.AccountID = &parts[0]
@@ -1163,10 +1162,10 @@ func resourceIBMSccSiNoteDelete(context context.Context, d *schema.ResourceData,
 	deleteNoteOptions.SetProviderID(parts[1])
 	deleteNoteOptions.SetNoteID(parts[2])
 
-	response, err := findingsClient.DeleteNoteWithContext(context, deleteNoteOptions)
+	response, err := findingsClient.DeleteNoteWithContext(context.TODO(), deleteNoteOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteNoteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteNoteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteNoteWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

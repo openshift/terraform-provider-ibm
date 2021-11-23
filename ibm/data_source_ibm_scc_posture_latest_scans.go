@@ -12,8 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/scc-go-sdk/posturemanagementv1"
@@ -21,7 +20,7 @@ import (
 
 func dataSourceIBMSccPostureLatestScans() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccPostureLatestScansRead,
+		Read: dataSourceIBMSccPostureLatestScansRead,
 
 		Schema: map[string]*schema.Schema{
 			"scan_id": &schema.Schema{
@@ -203,10 +202,10 @@ func dataSourceIBMSccPostureLatestScans() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccPostureLatestScansRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccPostureLatestScansRead(d *schema.ResourceData, meta interface{}) error {
 	postureManagementClient, err := meta.(ClientSession).PostureManagementV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listLatestScansOptions := &posturemanagementv1.ListLatestScansOptions{}
@@ -226,11 +225,11 @@ func dataSourceIBMSccPostureLatestScansRead(context context.Context, d *schema.R
 		listLatestScansOptions.Offset = &offset
 
 		listLatestScansOptions.Limit = core.Int64Ptr(int64(100))
-		result, response, err := postureManagementClient.ListLatestScansWithContext(context, listLatestScansOptions)
+		result, response, err := postureManagementClient.ListLatestScansWithContext(context.TODO(), listLatestScansOptions)
 		scansList = result
 		if err != nil {
 			log.Printf("[DEBUG] ListLatestScansWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("ListLatestScansWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ListLatestScansWithContext failed %s\n%s", err, response)
 		}
 		offset = dataSourceScansListGetNext(result.Next)
 		if suppliedFilter {
@@ -251,7 +250,7 @@ func dataSourceIBMSccPostureLatestScansRead(context context.Context, d *schema.R
 
 	if suppliedFilter {
 		if len(scansList.LatestScans) == 0 {
-			return diag.FromErr(fmt.Errorf("no LatestScans found with scanID %s", scanID))
+			return fmt.Errorf("no LatestScans found with scanID %s", scanID)
 		}
 		d.SetId(scanID)
 	} else {
@@ -261,28 +260,28 @@ func dataSourceIBMSccPostureLatestScansRead(context context.Context, d *schema.R
 	if scansList.First != nil {
 		err = d.Set("first", dataSourceScansListFlattenFirst(*scansList.First))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting first %s", err))
+			return fmt.Errorf("Error setting first %s", err)
 		}
 	}
 
 	if scansList.Last != nil {
 		err = d.Set("last", dataSourceScansListFlattenLast(*scansList.Last))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting last %s", err))
+			return fmt.Errorf("Error setting last %s", err)
 		}
 	}
 
 	if scansList.Previous != nil {
 		err = d.Set("previous", dataSourceScansListFlattenPrevious(*scansList.Previous))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting previous %s", err))
+			return fmt.Errorf("Error setting previous %s", err)
 		}
 	}
 
 	if scansList.LatestScans != nil {
 		err = d.Set("latest_scans", dataSourceScansListFlattenLatestScans(scansList.LatestScans))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting latest_scans %s", err))
+			return fmt.Errorf("Error setting latest_scans %s", err)
 		}
 	}
 

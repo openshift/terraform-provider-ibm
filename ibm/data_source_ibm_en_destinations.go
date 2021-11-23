@@ -7,15 +7,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	en "github.com/IBM/event-notifications-go-admin-sdk/eventnotificationsv1"
 )
 
 func dataSourceIBMEnDestinations() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMEnDestinationsRead,
+		Read: dataSourceIBMEnDestinationsRead,
 
 		Schema: map[string]*schema.Schema{
 			"instance_guid": {
@@ -84,10 +83,10 @@ func dataSourceIBMEnDestinations() *schema.Resource {
 	}
 }
 
-func dataSourceIBMEnDestinationsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMEnDestinationsRead(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.ListDestinationsOptions{}
@@ -109,12 +108,12 @@ func dataSourceIBMEnDestinationsRead(context context.Context, d *schema.Resource
 	for {
 		options.SetOffset(offset)
 
-		result, response, err := enClient.ListDestinationsWithContext(context, options)
+		result, response, err := enClient.ListDestinationsWithContext(context.TODO(), options)
 
 		destinationList = result
 
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("ListDestinationsWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ListDestinationsWithContext failed %s\n%s", err, response)
 		}
 
 		offset = offset + limit
@@ -131,12 +130,12 @@ func dataSourceIBMEnDestinationsRead(context context.Context, d *schema.Resource
 	d.SetId(fmt.Sprintf("destinations/%s", *options.InstanceID))
 
 	if err = d.Set("total_count", intValue(destinationList.TotalCount)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting total_count: %s", err))
+		return fmt.Errorf("error setting total_count: %s", err)
 	}
 
 	if destinationList.Destinations != nil {
 		if err = d.Set("destinations", enFlattenDestinationsList(destinationList.Destinations)); err != nil {
-			return diag.FromErr(fmt.Errorf("error setting destinations %s", err))
+			return fmt.Errorf("error setting destinations %s", err)
 		}
 	}
 

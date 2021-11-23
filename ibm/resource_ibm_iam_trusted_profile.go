@@ -4,23 +4,21 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/iamidentityv1"
 )
 
 func resourceIBMIamTrustedProfile() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMIamTrustedProfileCreate,
-		ReadContext:   resourceIBMIamTrustedProfileRead,
-		UpdateContext: resourceIBMIamTrustedProfileUpdate,
-		DeleteContext: resourceIBMIamTrustedProfileDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMIamTrustedProfileCreate,
+		Read:     resourceIBMIamTrustedProfileRead,
+		Update:   resourceIBMIamTrustedProfileUpdate,
+		Delete:   resourceIBMIamTrustedProfileDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"name": &schema.Schema{
@@ -122,17 +120,17 @@ func resourceIBMIamTrustedProfile() *schema.Resource {
 	}
 }
 
-func resourceIBMIamTrustedProfileCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileCreate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	createProfileOptions := &iamidentityv1.CreateProfileOptions{}
 
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := userDetails.userAccount
@@ -146,18 +144,18 @@ func resourceIBMIamTrustedProfileCreate(context context.Context, d *schema.Resou
 	trustedProfile, response, err := iamIdentityClient.CreateProfile(createProfileOptions)
 	if err != nil {
 		log.Printf("[DEBUG] CreateProfileWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("CreateProfileWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateProfileWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(*trustedProfile.ID)
 
-	return resourceIBMIamTrustedProfileRead(context, d, meta)
+	return resourceIBMIamTrustedProfileRead(d, meta)
 }
 
-func resourceIBMIamTrustedProfileRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileRead(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getProfileOptions := &iamidentityv1.GetProfileOptions{}
@@ -171,41 +169,41 @@ func resourceIBMIamTrustedProfileRead(context context.Context, d *schema.Resourc
 			return nil
 		}
 		log.Printf("[DEBUG] GetProfile failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetProfile failed %s\n%s", err, response))
+		return fmt.Errorf("GetProfile failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("name", trustedProfile.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("account_id", trustedProfile.AccountID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting account_id: %s", err))
+		return fmt.Errorf("Error setting account_id: %s", err)
 	}
 	if err = d.Set("description", trustedProfile.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting description: %s", err))
+		return fmt.Errorf("Error setting description: %s", err)
 	}
 	if err = d.Set("profile_id", trustedProfile.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting id: %s", err))
+		return fmt.Errorf("Error setting id: %s", err)
 	}
 	if err = d.Set("entity_tag", trustedProfile.EntityTag); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting entity_tag: %s", err))
+		return fmt.Errorf("Error setting entity_tag: %s", err)
 	}
 	if err = d.Set("crn", trustedProfile.CRN); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting crn: %s", err))
+		return fmt.Errorf("Error setting crn: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(trustedProfile.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("modified_at", dateTimeToString(trustedProfile.ModifiedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting modified_at: %s", err))
+		return fmt.Errorf("Error setting modified_at: %s", err)
 	}
 	if err = d.Set("iam_id", trustedProfile.IamID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting iam_id: %s", err))
+		return fmt.Errorf("Error setting iam_id: %s", err)
 	}
 	if err = d.Set("ims_account_id", intValue(trustedProfile.ImsAccountID)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting ims_account_id: %s", err))
+		return fmt.Errorf("Error setting ims_account_id: %s", err)
 	}
 	if err = d.Set("ims_user_id", intValue(trustedProfile.ImsUserID)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting ims_user_id: %s", err))
+		return fmt.Errorf("Error setting ims_user_id: %s", err)
 	}
 	history := []map[string]interface{}{}
 	if trustedProfile.History != nil {
@@ -215,7 +213,7 @@ func resourceIBMIamTrustedProfileRead(context context.Context, d *schema.Resourc
 		}
 	}
 	if err = d.Set("history", history); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting history: %s", err))
+		return fmt.Errorf("Error setting history: %s", err)
 	}
 
 	return nil
@@ -274,10 +272,10 @@ func resourceIBMIamTrustedProfileEnityHistoryRecordToMap(enityHistoryRecord iami
 	return enityHistoryRecordMap
 }
 
-func resourceIBMIamTrustedProfileUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileUpdate(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	updateProfileOptions := &iamidentityv1.UpdateProfileOptions{}
@@ -292,16 +290,16 @@ func resourceIBMIamTrustedProfileUpdate(context context.Context, d *schema.Resou
 	_, response, err := iamIdentityClient.UpdateProfile(updateProfileOptions)
 	if err != nil {
 		log.Printf("[DEBUG] UpdateProfile failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("UpdateProfile failed %s\n%s", err, response))
+		return fmt.Errorf("UpdateProfile failed %s\n%s", err, response)
 	}
 
-	return resourceIBMIamTrustedProfileRead(context, d, meta)
+	return resourceIBMIamTrustedProfileRead(d, meta)
 }
 
-func resourceIBMIamTrustedProfileDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMIamTrustedProfileDelete(d *schema.ResourceData, meta interface{}) error {
 	iamIdentityClient, err := meta.(ClientSession).IAMIdentityV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	deleteProfileOptions := &iamidentityv1.DeleteProfileOptions{}
@@ -311,7 +309,7 @@ func resourceIBMIamTrustedProfileDelete(context context.Context, d *schema.Resou
 	response, err := iamIdentityClient.DeleteProfile(deleteProfileOptions)
 	if err != nil {
 		log.Printf("[DEBUG] DeleteProfile failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("DeleteProfile failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteProfile failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

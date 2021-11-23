@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/scc-go-sdk/findingsv1"
 )
 
 func dataSourceIBMSccSiNote() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSccSiNoteRead,
+		Read: dataSourceIBMSccSiNoteRead,
 
 		Schema: map[string]*schema.Schema{
 			"account_id": &schema.Schema{
@@ -318,14 +317,14 @@ func dataSourceIBMSccSiNote() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSccSiNoteRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSccSiNoteRead(d *schema.ResourceData, meta interface{}) error {
 	findingsClient, err := meta.(ClientSession).FindingsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 	userDetails, err := meta.(ClientSession).BluemixUserDetails()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	accountID := d.Get("account_id").(string)
@@ -341,71 +340,71 @@ func dataSourceIBMSccSiNoteRead(context context.Context, d *schema.ResourceData,
 	getNoteOptions.SetProviderID(d.Get("provider_id").(string))
 	getNoteOptions.SetNoteID(d.Get("note_id").(string))
 
-	apiNote, response, err := findingsClient.GetNoteWithContext(context, getNoteOptions)
+	apiNote, response, err := findingsClient.GetNoteWithContext(context.TODO(), getNoteOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetNoteWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetNoteWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetNoteWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s/%s", *findingsClient.AccountID, *getNoteOptions.ProviderID, *getNoteOptions.NoteID))
 	if err = d.Set("short_description", apiNote.ShortDescription); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting short_description: %s", err))
+		return fmt.Errorf("Error setting short_description: %s", err)
 	}
 	if err = d.Set("long_description", apiNote.LongDescription); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting long_description: %s", err))
+		return fmt.Errorf("Error setting long_description: %s", err)
 	}
 	if err = d.Set("kind", apiNote.Kind); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting kind: %s", err))
+		return fmt.Errorf("Error setting kind: %s", err)
 	}
 
 	if apiNote.RelatedURL != nil {
 		err = d.Set("related_url", dataSourceAPINoteFlattenRelatedURL(apiNote.RelatedURL))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting related_url %s", err))
+			return fmt.Errorf("Error setting related_url %s", err)
 		}
 	}
 	if err = d.Set("create_time", dateTimeToString(apiNote.CreateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting create_time: %s", err))
+		return fmt.Errorf("Error setting create_time: %s", err)
 	}
 	if err = d.Set("update_time", dateTimeToString(apiNote.UpdateTime)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting update_time: %s", err))
+		return fmt.Errorf("Error setting update_time: %s", err)
 	}
 	if err = d.Set("shared", apiNote.Shared); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting shared: %s", err))
+		return fmt.Errorf("Error setting shared: %s", err)
 	}
 
 	if apiNote.ReportedBy != nil {
 		err = d.Set("reported_by", dataSourceAPINoteFlattenReportedBy(*apiNote.ReportedBy))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting reported_by %s", err))
+			return fmt.Errorf("Error setting reported_by %s", err)
 		}
 	}
 
 	if apiNote.Finding != nil {
 		err = d.Set("finding", dataSourceAPINoteFlattenFinding(*apiNote.Finding))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting finding %s", err))
+			return fmt.Errorf("Error setting finding %s", err)
 		}
 	}
 
 	if apiNote.Kpi != nil {
 		err = d.Set("kpi", dataSourceAPINoteFlattenKpi(*apiNote.Kpi))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting kpi %s", err))
+			return fmt.Errorf("Error setting kpi %s", err)
 		}
 	}
 
 	if apiNote.Card != nil {
 		err = d.Set("card", dataSourceAPINoteFlattenCard(*apiNote.Card))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting card %s", err))
+			return fmt.Errorf("Error setting card %s", err)
 		}
 	}
 
 	if apiNote.Section != nil {
 		err = d.Set("section", dataSourceAPINoteFlattenSection(*apiNote.Section))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting section %s", err))
+			return fmt.Errorf("Error setting section %s", err)
 		}
 	}
 

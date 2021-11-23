@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsVpcAddressPrefixes() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsVpcAddressPrefixRead,
+		Read: dataSourceIbmIsVpcAddressPrefixRead,
 
 		Schema: map[string]*schema.Schema{
 			"vpc": &schema.Schema{
@@ -97,11 +96,11 @@ func dataSourceIbmIsVpcAddressPrefixes() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsVpcAddressPrefixRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsVpcAddressPrefixRead(d *schema.ResourceData, meta interface{}) error {
 
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	start := ""
@@ -114,10 +113,10 @@ func dataSourceIbmIsVpcAddressPrefixRead(context context.Context, d *schema.Reso
 		if start != "" {
 			listVpcAddressPrefixesOptions.Start = &start
 		}
-		addressPrefixCollection, response, err := vpcClient.ListVPCAddressPrefixesWithContext(context, listVpcAddressPrefixesOptions)
+		addressPrefixCollection, response, err := vpcClient.ListVPCAddressPrefixesWithContext(context.TODO(), listVpcAddressPrefixesOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListVpcAddressPrefixesWithContext failed %s\n%s", err, response)
-			return diag.FromErr(fmt.Errorf("ListVpcAddressPrefixesWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("ListVpcAddressPrefixesWithContext failed %s\n%s", err, response)
 		}
 		start = GetNext(addressPrefixCollection.Next)
 		allrecs = append(allrecs, addressPrefixCollection.AddressPrefixes...)
@@ -145,7 +144,7 @@ func dataSourceIbmIsVpcAddressPrefixRead(context context.Context, d *schema.Reso
 
 	if suppliedFilter {
 		if len(matchAddressPrefixes) == 0 {
-			return diag.FromErr(fmt.Errorf("no AddressPrefixes found with name %s", name))
+			return fmt.Errorf("no AddressPrefixes found with name %s", name)
 		}
 		d.SetId(name)
 	} else {
@@ -155,7 +154,7 @@ func dataSourceIbmIsVpcAddressPrefixRead(context context.Context, d *schema.Reso
 	if matchAddressPrefixes != nil {
 		err = d.Set("address_prefixes", dataSourceAddressPrefixCollectionFlattenAddressPrefixes(matchAddressPrefixes))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting address_prefixes %s", err))
+			return fmt.Errorf("Error setting address_prefixes %s", err)
 		}
 	}
 

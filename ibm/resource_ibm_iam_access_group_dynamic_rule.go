@@ -6,7 +6,7 @@ package ibm
 import (
 	"fmt"
 	"github.com/IBM/platform-services-go-sdk/iamaccessgroupsv2"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceIBMIAMDynamicRule() *schema.Resource {

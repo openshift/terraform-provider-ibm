@@ -8,15 +8,14 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/schematics-go-sdk/schematicsv1"
 )
 
 func dataSourceIBMSchematicsResourceQuery() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMSchematicsResourceQueryRead,
+		Read: dataSourceIBMSchematicsResourceQueryRead,
 
 		Schema: map[string]*schema.Schema{
 			"query_id": &schema.Schema{
@@ -107,49 +106,49 @@ func dataSourceIBMSchematicsResourceQuery() *schema.Resource {
 	}
 }
 
-func dataSourceIBMSchematicsResourceQueryRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMSchematicsResourceQueryRead(d *schema.ResourceData, meta interface{}) error {
 	schematicsClient, err := meta.(ClientSession).SchematicsV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getResourcesQueryOptions := &schematicsv1.GetResourcesQueryOptions{}
 
 	getResourcesQueryOptions.SetQueryID(d.Get("query_id").(string))
 
-	resourceQueryRecord, response, err := schematicsClient.GetResourcesQueryWithContext(context, getResourcesQueryOptions)
+	resourceQueryRecord, response, err := schematicsClient.GetResourcesQueryWithContext(context.TODO(), getResourcesQueryOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetResourcesQueryWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetResourcesQueryWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetResourcesQueryWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s", *getResourcesQueryOptions.QueryID))
 	if err = d.Set("type", resourceQueryRecord.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting type: %s", err))
+		return fmt.Errorf("Error setting type: %s", err)
 	}
 	if err = d.Set("name", resourceQueryRecord.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting name: %s", err))
+		return fmt.Errorf("Error setting name: %s", err)
 	}
 	if err = d.Set("id", resourceQueryRecord.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting id: %s", err))
+		return fmt.Errorf("Error setting id: %s", err)
 	}
 	if err = d.Set("created_at", dateTimeToString(resourceQueryRecord.CreatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_at: %s", err))
+		return fmt.Errorf("Error setting created_at: %s", err)
 	}
 	if err = d.Set("created_by", resourceQueryRecord.CreatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting created_by: %s", err))
+		return fmt.Errorf("Error setting created_by: %s", err)
 	}
 	if err = d.Set("updated_at", dateTimeToString(resourceQueryRecord.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_at: %s", err))
+		return fmt.Errorf("Error setting updated_at: %s", err)
 	}
 	if err = d.Set("updated_by", resourceQueryRecord.UpdatedBy); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting updated_by: %s", err))
+		return fmt.Errorf("Error setting updated_by: %s", err)
 	}
 
 	if resourceQueryRecord.Queries != nil {
 		err = d.Set("queries", dataSourceResourceQueryRecordFlattenQueries(resourceQueryRecord.Queries))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting queries %s", err))
+			return fmt.Errorf("Error setting queries %s", err)
 		}
 	}
 

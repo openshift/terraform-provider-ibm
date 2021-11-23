@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	appid "github.com/IBM/appid-management-go-sdk/appidmanagementv4"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"log"
 )
 
 func dataSourceIBMAppIDCloudDirectoryUser() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAppIDCloudDirectoryUserRead,
+		Read: dataSourceIBMAppIDCloudDirectoryUserRead,
 		Schema: map[string]*schema.Schema{
 			"tenant_id": {
 				Type:        schema.TypeString,
@@ -95,23 +94,23 @@ func dataSourceIBMAppIDCloudDirectoryUser() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAppIDCloudDirectoryUserRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAppIDCloudDirectoryUserRead(d *schema.ResourceData, meta interface{}) error {
 	appIDClient, err := meta.(ClientSession).AppIDAPI()
 
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	tenantID := d.Get("tenant_id").(string)
 	userID := d.Get("user_id").(string)
 
-	user, resp, err := appIDClient.GetCloudDirectoryUserWithContext(ctx, &appid.GetCloudDirectoryUserOptions{
+	user, resp, err := appIDClient.GetCloudDirectoryUserWithContext(context.TODO(), &appid.GetCloudDirectoryUserOptions{
 		TenantID: &tenantID,
 		UserID:   &userID,
 	})
 
 	if err != nil {
-		return diag.Errorf("Error getting AppID Cloud Directory user: %s\n%s", err, resp)
+		return fmt.Errorf("Error getting AppID Cloud Directory user: %s\n%s", err, resp)
 	}
 
 	d.Set("tenant_id", tenantID)
@@ -138,24 +137,24 @@ func dataSourceIBMAppIDCloudDirectoryUserRead(ctx context.Context, d *schema.Res
 
 	if user.Emails != nil {
 		if err := d.Set("email", flattenAppIDUserEmails(user.Emails)); err != nil {
-			return diag.Errorf("Error setting AppID user emails: %s", err)
+			return fmt.Errorf("Error setting AppID user emails: %s", err)
 		}
 	}
 
 	if user.Meta != nil {
 		if err := d.Set("meta", flattenAppIDUserMetadata(user.Meta)); err != nil {
-			return diag.Errorf("Error setting AppID user metadata: %s", err)
+			return fmt.Errorf("Error setting AppID user metadata: %s", err)
 		}
 	}
 
-	attr, resp, err := appIDClient.CloudDirectoryGetUserinfoWithContext(ctx, &appid.CloudDirectoryGetUserinfoOptions{
+	attr, resp, err := appIDClient.CloudDirectoryGetUserinfoWithContext(context.TODO(), &appid.CloudDirectoryGetUserinfoOptions{
 		TenantID: &tenantID,
 		UserID:   &userID,
 	})
 
 	if err != nil {
 		log.Printf("[DEBUG] Error getting AppID user attributes: %s\n%s", err, resp)
-		return diag.Errorf("Error getting AppID user attributes: %s", err)
+		return fmt.Errorf("Error getting AppID user attributes: %s", err)
 	}
 
 	if attr.Sub != nil {

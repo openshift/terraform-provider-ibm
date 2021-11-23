@@ -8,19 +8,18 @@ import (
 	"fmt"
 
 	"github.com/IBM/go-sdk-core/v5/core"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	en "github.com/IBM/event-notifications-go-admin-sdk/eventnotificationsv1"
 )
 
 func resourceIBMEnDestination() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMEnDestinationCreate,
-		ReadContext:   resourceIBMEnDestinationRead,
-		UpdateContext: resourceIBMEnDestinationUpdate,
-		DeleteContext: resourceIBMEnDestinationDelete,
-		Importer:      &schema.ResourceImporter{},
+		Create:   resourceIBMEnDestinationCreate,
+		Read:     resourceIBMEnDestinationRead,
+		Update:   resourceIBMEnDestinationUpdate,
+		Delete:   resourceIBMEnDestinationDelete,
+		Importer: &schema.ResourceImporter{},
 
 		Schema: map[string]*schema.Schema{
 			"instance_guid": {
@@ -128,10 +127,10 @@ func resourceIBMEnDestinationValidator() *ResourceValidator {
 	return &resourceValidator
 }
 
-func resourceIBMEnDestinationCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEnDestinationCreate(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.CreateDestinationOptions{}
@@ -148,96 +147,96 @@ func resourceIBMEnDestinationCreate(context context.Context, d *schema.ResourceD
 		options.SetConfig(&config)
 	}
 
-	result, response, err := enClient.CreateDestinationWithContext(context, options)
+	result, response, err := enClient.CreateDestinationWithContext(context.TODO(), options)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("CreateDestinationWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("CreateDestinationWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(fmt.Sprintf("%s/%s", *options.InstanceID, *result.ID))
 
-	return resourceIBMEnDestinationRead(context, d, meta)
+	return resourceIBMEnDestinationRead(d, meta)
 }
 
-func resourceIBMEnDestinationRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEnDestinationRead(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.GetDestinationOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options.SetInstanceID(parts[0])
 	options.SetID(parts[1])
 
-	result, response, err := enClient.GetDestinationWithContext(context, options)
+	result, response, err := enClient.GetDestinationWithContext(context.TODO(), options)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("GetDestinationWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetDestinationWithContext failed %s\n%s", err, response)
 	}
 
 	if err = d.Set("instance_guid", options.InstanceID); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting instance_guid: %s", err))
+		return fmt.Errorf("error setting instance_guid: %s", err)
 	}
 
 	if err = d.Set("destination_id", options.ID); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting destination_id: %s", err))
+		return fmt.Errorf("error setting destination_id: %s", err)
 	}
 
 	if err = d.Set("name", result.Name); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting name: %s", err))
+		return fmt.Errorf("error setting name: %s", err)
 	}
 
 	if err = d.Set("type", result.Type); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting type: %s", err))
+		return fmt.Errorf("error setting type: %s", err)
 	}
 
 	if err = d.Set("description", result.Description); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting description: %s", err))
+		return fmt.Errorf("error setting description: %s", err)
 	}
 
 	if result.Config != nil {
 		err = d.Set("config", enDestinationFlattenConfig(*result.Config))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("error setting config %s", err))
+			return fmt.Errorf("error setting config %s", err)
 		}
 	}
 
 	if err = d.Set("updated_at", dateTimeToString(result.UpdatedAt)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting updated_at: %s", err))
+		return fmt.Errorf("error setting updated_at: %s", err)
 	}
 
 	if err = d.Set("subscription_count", intValue(result.SubscriptionCount)); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting subscription_count: %s", err))
+		return fmt.Errorf("error setting subscription_count: %s", err)
 	}
 
 	if result.Config != nil {
 		if err = d.Set("subscription_names", result.SubscriptionNames); err != nil {
-			return diag.FromErr(fmt.Errorf("error setting subscription_names: %s", err))
+			return fmt.Errorf("error setting subscription_names: %s", err)
 		}
 	}
 
 	return nil
 }
 
-func resourceIBMEnDestinationUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEnDestinationUpdate(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.UpdateDestinationOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options.SetInstanceID(parts[0])
@@ -253,40 +252,40 @@ func resourceIBMEnDestinationUpdate(context context.Context, d *schema.ResourceD
 			config := destinationConfigMapToDestinationConfig(d.Get("config.0.params.0").(map[string]interface{}))
 			options.SetConfig(&config)
 		}
-		_, response, err := enClient.UpdateDestinationWithContext(context, options)
+		_, response, err := enClient.UpdateDestinationWithContext(context.TODO(), options)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("UpdateDestinationWithContext failed %s\n%s", err, response))
+			return fmt.Errorf("UpdateDestinationWithContext failed %s\n%s", err, response)
 		}
 
-		return resourceIBMEnDestinationRead(context, d, meta)
+		return resourceIBMEnDestinationRead(d, meta)
 	}
 
 	return nil
 }
 
-func resourceIBMEnDestinationDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMEnDestinationDelete(d *schema.ResourceData, meta interface{}) error {
 	enClient, err := meta.(ClientSession).EventNotificationsApiV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options := &en.DeleteDestinationOptions{}
 
 	parts, err := sepIdParts(d.Id(), "/")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	options.SetInstanceID(parts[0])
 	options.SetID(parts[1])
 
-	response, err := enClient.DeleteDestinationWithContext(context, options)
+	response, err := enClient.DeleteDestinationWithContext(context.TODO(), options)
 	if err != nil {
 		if response != nil && response.StatusCode == 404 {
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("DeleteDestinationWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("DeleteDestinationWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId("")

@@ -5,11 +5,11 @@ package ibm
 
 import (
 	"context"
+	"fmt"
 	"log"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
 	"github.com/IBM-Cloud/power-go-client/clients/instance"
 	"github.com/IBM-Cloud/power-go-client/helpers"
@@ -34,7 +34,7 @@ const (
 
 func dataSourceIBMPICloudConnection() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMPICloudConnectionRead,
+		Read: dataSourceIBMPICloudConnectionRead,
 		Schema: map[string]*schema.Schema{
 			helpers.PICloudInstanceId: {
 				Type:         schema.TypeString,
@@ -113,10 +113,10 @@ func dataSourceIBMPICloudConnection() *schema.Resource {
 	}
 }
 
-func dataSourceIBMPICloudConnectionRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMPICloudConnectionRead(d *schema.ResourceData, meta interface{}) error {
 	sess, err := meta.(ClientSession).IBMPISession()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	cloudInstanceID := d.Get(helpers.PICloudInstanceId).(string)
@@ -125,15 +125,15 @@ func dataSourceIBMPICloudConnectionRead(ctx context.Context, d *schema.ResourceD
 
 	// Get API does not work with name for Cloud Connection hence using GetAll (max 2)
 	// TODO: Uncomment Get call below when avaiable and remove GetAll
-	// cloudConnectionD, err := client.GetWithContext(ctx, cloudConnectionName, cloudInstanceID)
+	// cloudConnectionD, err := client.GetWithContext(context.TODO(), cloudConnectionName, cloudInstanceID)
 	// if err != nil {
 	// 	log.Printf("[DEBUG] get cloud connection failed %v", err)
-	// 	return diag.Errorf(errors.GetCloudConnectionOperationFailed, cloudConnectionName, err)
+	// 	return fmt.Errorf(errors.GetCloudConnectionOperationFailed, cloudConnectionName, err)
 	// }
-	cloudConnections, err := client.GetAllWithContext(ctx, cloudInstanceID)
+	cloudConnections, err := client.GetAllWithContext(context.TODO(), cloudInstanceID)
 	if err != nil {
 		log.Printf("[DEBUG] get cloud connections failed %v", err)
-		return diag.Errorf("failed to perform get cloud connections operation with error %v", err)
+		return fmt.Errorf("failed to perform get cloud connections operation with error %v", err)
 	}
 	var cloudConnection *models.CloudConnection
 	if cloudConnections != nil {
@@ -146,7 +146,7 @@ func dataSourceIBMPICloudConnectionRead(ctx context.Context, d *schema.ResourceD
 	}
 	if cloudConnection == nil {
 		log.Printf("[DEBUG] cloud connection not found")
-		return diag.Errorf("failed to perform get cloud connection operation for name %s", cloudConnectionName)
+		return fmt.Errorf("failed to perform get cloud connection operation for name %s", cloudConnectionName)
 	}
 
 	d.SetId(*cloudConnection.CloudConnectionID)

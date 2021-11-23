@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/platform-services-go-sdk/atrackerv1"
 )
 
 func dataSourceIBMAtrackerEndpoints() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIBMAtrackerEndpointsRead,
+		Read: dataSourceIBMAtrackerEndpointsRead,
 
 		Schema: map[string]*schema.Schema{
 			"api_endpoint": &schema.Schema{
@@ -53,18 +52,18 @@ func dataSourceIBMAtrackerEndpoints() *schema.Resource {
 	}
 }
 
-func dataSourceIBMAtrackerEndpointsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIBMAtrackerEndpointsRead(d *schema.ResourceData, meta interface{}) error {
 	atrackerClient, err := meta.(ClientSession).AtrackerV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getEndpointsOptions := &atrackerv1.GetEndpointsOptions{}
 
-	endpoints, response, err := atrackerClient.GetEndpointsWithContext(context, getEndpointsOptions)
+	endpoints, response, err := atrackerClient.GetEndpointsWithContext(context.TODO(), getEndpointsOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetEndpointsWithContext failed %s\n%s", err, response)
-		return diag.FromErr(fmt.Errorf("GetEndpointsWithContext failed %s\n%s", err, response))
+		return fmt.Errorf("GetEndpointsWithContext failed %s\n%s", err, response)
 	}
 
 	d.SetId(dataSourceIBMAtrackerEndpointsID(d))
@@ -72,7 +71,7 @@ func dataSourceIBMAtrackerEndpointsRead(context context.Context, d *schema.Resou
 	if endpoints.APIEndpoint != nil {
 		err = d.Set("api_endpoint", dataSourceEndpointsFlattenAPIEndpoint(*endpoints.APIEndpoint))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting api_endpoint %s", err))
+			return fmt.Errorf("Error setting api_endpoint %s", err)
 		}
 	}
 

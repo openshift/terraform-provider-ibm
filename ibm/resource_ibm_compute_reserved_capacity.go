@@ -4,7 +4,6 @@
 package ibm
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,9 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/softlayer/softlayer-go/filter"
 	"github.com/softlayer/softlayer-go/helpers/location"
 	"github.com/softlayer/softlayer-go/helpers/product"
@@ -27,10 +25,10 @@ import (
 
 func resourceIBMComputeReservedCapacity() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIBMComputeReservedCapacityCreate,
-		ReadContext:   resourceIBMComputeReservedCapacityRead,
-		UpdateContext: resourceIBMComputeReservedCapacityUpdate,
-		DeleteContext: resourceIBMComputeReservedCapacityDelete,
+		Create:        resourceIBMComputeReservedCapacityCreate,
+		Read:          resourceIBMComputeReservedCapacityRead,
+		Update:        resourceIBMComputeReservedCapacityUpdate,
+		Delete:        resourceIBMComputeReservedCapacityDelete,
 		Exists:        resourceIBMComputeReservedCapacityExists,
 		Importer:      &schema.ResourceImporter{},
 		CustomizeDiff: resourceReservedCapacityValidate,
@@ -92,7 +90,7 @@ func resourceIBMComputeReservedCapacity() *schema.Resource {
 	}
 }
 
-func resourceIBMComputeReservedCapacityCreate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMComputeReservedCapacityCreate(d *schema.ResourceData, meta interface{}) error {
 	sess := meta.(ClientSession).SoftLayerSession()
 	name := d.Get("name").(string)
 	datacenter := d.Get("datacenter").(string)
@@ -106,7 +104,7 @@ func resourceIBMComputeReservedCapacityCreate(context context.Context, d *schema
 	// 1.Getting the router ID
 	routerids, err := PodService.Filter(filter.Path("datacenterName").Eq(datacenter).Build()).Mask(podMask).GetAllObjects()
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] Encountered problem trying to get the router ID: %s", err))
+		return fmt.Errorf("[ERROR] Encountered problem trying to get the router ID: %s", err)
 	}
 	var routerid int
 	for _, iterate := range routerids {
@@ -117,13 +115,13 @@ func resourceIBMComputeReservedCapacityCreate(context context.Context, d *schema
 
 	pkg, err := product.GetPackageByType(sess, "RESERVED_CAPACITY")
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	// 2. Get all prices for the package
 	productItems, err := product.GetPackageProducts(sess, *pkg.Id, productItemMaskWithPriceLocationGroupID)
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	priceItems := []datatypes.Product_Item_Price{}
@@ -146,7 +144,7 @@ func resourceIBMComputeReservedCapacityCreate(context context.Context, d *schema
 	// Lookup the data center ID
 	dc, err := location.GetDatacenterByName(sess, datacenter)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] No data centers matching %s could be found", datacenter))
+		return fmt.Errorf("[ERROR] No data centers matching %s could be found", datacenter)
 	}
 
 	productOrderContainer := datatypes.Container_Product_Order_Virtual_ReservedCapacity{
@@ -166,25 +164,25 @@ func resourceIBMComputeReservedCapacityCreate(context context.Context, d *schema
 	_, err = services.GetProductOrderService(sess.SetRetries(0)).
 		VerifyOrder(&productOrderContainer)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[ERROR] during creation of reserved capacity: %s", err))
+		return fmt.Errorf("[ERROR] during creation of reserved capacity: %s", err)
 	}
 	//place order
 	_, err = services.GetProductOrderService(sess.SetRetries(0)).
 		PlaceOrder(&productOrderContainer, sl.Bool(false))
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("[Error] during creation of reserved capacity: %s", err))
+		return fmt.Errorf("[Error] during creation of reserved capacity: %s", err)
 	}
 
 	// wait for machine availability
 	reservedCapacity, err := findReservedCapacityByOrderID(name, d, meta)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf(
-			"[Error] waiting for reserved capacity (%s) to become ready: %s", d.Id(), err))
+		return fmt.Errorf(
+			"[Error] waiting for reserved capacity (%s) to become ready: %s", d.Id(), err)
 	}
 
 	id := *reservedCapacity.(datatypes.Virtual_ReservedCapacityGroup).Id
 	d.SetId(fmt.Sprintf("%d", id))
-	return resourceIBMComputeReservedCapacityRead(context, d, meta)
+	return resourceIBMComputeReservedCapacityRead(d, meta)
 }
 func findReservedCapacityByOrderID(name string, r *schema.ResourceData, meta interface{}) (interface{}, error) {
 
@@ -218,7 +216,7 @@ func findReservedCapacityByOrderID(name string, r *schema.ResourceData, meta int
 	return stateConf.WaitForState()
 }
 
-func resourceIBMComputeReservedCapacityRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMComputeReservedCapacityRead(d *schema.ResourceData, meta interface{}) error {
 	sess := meta.(ClientSession).SoftLayerSession()
 	service := services.GetVirtualReservedCapacityGroupService(sess)
 
@@ -232,7 +230,7 @@ func resourceIBMComputeReservedCapacityRead(context context.Context, d *schema.R
 				return nil
 			}
 		}
-		return diag.FromErr(fmt.Errorf("[Error] retrieving reserved capacity: %s", err))
+		return fmt.Errorf("[Error] retrieving reserved capacity: %s", err)
 	}
 
 	d.Set("name", rgrp.Name)
@@ -251,7 +249,7 @@ func resourceIBMComputeReservedCapacityRead(context context.Context, d *schema.R
 	return nil
 }
 
-func resourceIBMComputeReservedCapacityUpdate(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMComputeReservedCapacityUpdate(d *schema.ResourceData, meta interface{}) error {
 	sess := meta.(ClientSession).SoftLayerSession()
 	service := services.GetVirtualReservedCapacityGroupService(sess)
 
@@ -264,7 +262,7 @@ func resourceIBMComputeReservedCapacityUpdate(context context.Context, d *schema
 		_, err := service.Id(rgrpID).EditObject(&opts)
 
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("[Error] editing reserved capacity: %s", err))
+			return fmt.Errorf("[Error] editing reserved capacity: %s", err)
 		}
 	}
 
@@ -293,13 +291,13 @@ func resourceIBMComputeReservedCapacityExists(d *schema.ResourceData, meta inter
 	return result.Id != nil && *result.Id == rgrpID, nil
 }
 
-func resourceIBMComputeReservedCapacityDelete(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceIBMComputeReservedCapacityDelete(d *schema.ResourceData, meta interface{}) error {
 	log.Println("[WARN]: `terraform destroy` does not remove the reserved capacity but only clears the state file. We cannot cancel reserved capacity")
 	d.SetId("")
 	return nil
 }
 
-func resourceReservedCapacityValidate(_ context.Context, diff *schema.ResourceDiff, meta interface{}) error {
+func resourceReservedCapacityValidate(diff *schema.ResourceDiff, meta interface{}) error {
 	forceCreate := diff.Get("force_create").(bool)
 	if diff.Id() == "" && !forceCreate {
 		name := diff.Get("name").(string)

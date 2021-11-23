@@ -6,13 +6,12 @@ import (
 	"log"
 
 	"github.com/IBM/push-notifications-go-sdk/pushservicev1"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func dataSourceIBMPNApplicationChrome() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceApplicationChromeRead,
+		Read: dataSourceApplicationChromeRead,
 
 		Schema: map[string]*schema.Schema{
 			"guid": {
@@ -34,10 +33,10 @@ func dataSourceIBMPNApplicationChrome() *schema.Resource {
 	}
 }
 
-func dataSourceApplicationChromeRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceApplicationChromeRead(d *schema.ResourceData, meta interface{}) error {
 	pushServiceClient, err := meta.(ClientSession).PushServiceV1()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	getChromeWebConfOptions := &pushservicev1.GetChromeWebConfOptions{}
@@ -45,18 +44,18 @@ func dataSourceApplicationChromeRead(context context.Context, d *schema.Resource
 	guid := d.Get("guid").(string)
 	getChromeWebConfOptions.SetApplicationID(guid)
 
-	chromeWebConf, response, err := pushServiceClient.GetChromeWebConfWithContext(context, getChromeWebConfOptions)
+	chromeWebConf, response, err := pushServiceClient.GetChromeWebConfWithContext(context.TODO(), getChromeWebConfOptions)
 	if err != nil {
 		log.Printf("[DEBUG] GetChromeWebConfWithContext failed %s\n%d", err, response.StatusCode)
-		return diag.FromErr(err)
+		return err
 	}
 
 	d.SetId(guid)
 	if err = d.Set("server_key", chromeWebConf.ApiKey); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting server_key: %s", err))
+		return fmt.Errorf("Error setting server_key: %s", err)
 	}
 	if err = d.Set("web_site_url", chromeWebConf.WebSiteURL); err != nil {
-		return diag.FromErr(fmt.Errorf("Error setting web_site_url: %s", err))
+		return fmt.Errorf("Error setting web_site_url: %s", err)
 	}
 
 	return nil

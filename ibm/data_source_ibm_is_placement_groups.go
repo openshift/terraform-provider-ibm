@@ -9,15 +9,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/IBM/vpc-go-sdk/vpcv1"
 )
 
 func dataSourceIbmIsPlacementGroups() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dataSourceIbmIsPlacementGroupsRead,
+		Read: dataSourceIbmIsPlacementGroupsRead,
 
 		Schema: map[string]*schema.Schema{
 			"placement_groups": {
@@ -116,10 +115,10 @@ func dataSourceIbmIsPlacementGroups() *schema.Resource {
 	}
 }
 
-func dataSourceIbmIsPlacementGroupsRead(context context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceIbmIsPlacementGroupsRead(d *schema.ResourceData, meta interface{}) error {
 	vpcClient, err := meta.(ClientSession).VpcV1API()
 	if err != nil {
-		return diag.FromErr(err)
+		return err
 	}
 
 	listPlacementGroupsOptions := &vpcv1.ListPlacementGroupsOptions{}
@@ -129,10 +128,10 @@ func dataSourceIbmIsPlacementGroupsRead(context context.Context, d *schema.Resou
 		if start != "" {
 			listPlacementGroupsOptions.Start = &start
 		}
-		placementGroupCollection, response, err := vpcClient.ListPlacementGroupsWithContext(context, listPlacementGroupsOptions)
+		placementGroupCollection, response, err := vpcClient.ListPlacementGroupsWithContext(context.TODO(), listPlacementGroupsOptions)
 		if err != nil {
 			log.Printf("[DEBUG] ListPlacementGroupsWithContext failed %s\n%s", err, response)
-			return diag.FromErr(err)
+			return err
 		}
 		start = GetNext(placementGroupCollection.Next)
 		allrecs = append(allrecs, placementGroupCollection.PlacementGroups...)
@@ -145,10 +144,10 @@ func dataSourceIbmIsPlacementGroupsRead(context context.Context, d *schema.Resou
 	if len(allrecs) > 0 {
 		err = d.Set("placement_groups", dataSourcePlacementGroupCollectionFlattenPlacementGroups(meta, allrecs))
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting placement_groups %s", err))
+			return fmt.Errorf("Error setting placement_groups %s", err)
 		}
 		if err = d.Set("total_count", len(allrecs)); err != nil {
-			return diag.FromErr(fmt.Errorf("Error setting total_count: %s", err))
+			return fmt.Errorf("Error setting total_count: %s", err)
 		}
 	}
 	return nil
