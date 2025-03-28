@@ -30,7 +30,6 @@ website/vendor
 *.attach
 *.xml
 *.old
-vendor/
 *.lock.hcl
 
 # Test exclusions
