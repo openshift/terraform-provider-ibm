@@ -10,7 +10,7 @@ description: |-
 
 Retrieve information about all Power Systems Virtual Server instances for the given cloud instance. For more information, about Power Virtual Server instances, see [getting started with IBM Power Systems Virtual Servers](https://cloud.ibm.com/docs/power-iaas?topic=power-iaas-getting-started).
 
-## Example usage
+## Example Usage
 
 ```terraform
 data "ibm_pi_instances" "ds_instance" {
@@ -34,13 +34,13 @@ Example usage:
     }
   ```
 
-## Argument reference
+## Argument Reference
 
 Review the argument references that you can specify for your data source.
 
 - `pi_cloud_instance_id` - (Required, String) The GUID of the service instance associated with an account.
 
-## Attribute reference
+## Attribute Reference
 
 In addition to all argument reference list, you can access the following attribute references after your data source is created.
 
@@ -58,7 +58,7 @@ In addition to all argument reference list, you can access the following attribu
         - `message` -  (String) The fault message of the server.
 
   - `health_status` - (String) The health of the instance.
-  - `license_repository_capacity` - (Deprecated, Integer) The VTL license repository capacity TB value. Only available with VTL instances.
+  - `license_repository_capacity` - (Integer) The VTL license repository capacity TB value. Only available with VTL instances.
   - `memory` - (Float) The amount of memory that is allocated to the instance.
   - `minproc`- (Float) The minimum number of processors that must be allocated to the instance.
   - `maxproc`- (Float) The maximum number of processors that can be allocated to the instance without shutting down or rebooting the `LPAR`.

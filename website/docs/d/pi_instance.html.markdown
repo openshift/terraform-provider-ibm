@@ -10,7 +10,7 @@ description: |-
 
 Retrieve information about a Power Systems Virtual Server instance. For more information, about Power Virtual Server instance, see [getting started with IBM Power Systems Virtual Servers](https://cloud.ibm.com/docs/power-iaas?topic=power-iaas-getting-started).
 
-## Example usage
+## Example Usage
 
 ```terraform
 data "ibm_pi_instance" "ds_instance" {
@@ -35,14 +35,14 @@ Example usage:
     }
   ```
 
-## Argument reference
+## Argument Reference
 
 Review the argument references that you can specify for your data source.
 
 - `pi_cloud_instance_id` - (Required, String) The GUID of the service instance associated with an account.
 - `pi_instance_name` - (Required, String) The unique identifier or name of the instance.
 
-## Attribute reference
+## Attribute Reference
 
 In addition to all argument reference list, you can access the following attribute references after your data source is created.
 
@@ -66,7 +66,7 @@ In addition to all argument reference list, you can access the following attribu
 - `ibmi_rds` - (Boolean) IBM i Rational Dev Studio.
 - `ibmi_rds_users` - (Integer) IBM i Rational Dev Studio Number of User Licenses.
 - `id` - (String) The unique identifier of the instance.
-- `license_repository_capacity` - (Deprecated, Integer) The VTL license repository capacity TB value. Only available with VTL instances.
+- `license_repository_capacity` - (Integer) The VTL license repository capacity TB value. Only available with VTL instances.
 - `maxmem`- (Float) The maximum amount of memory that can be allocated to the instance without shutting down or rebooting the `LPAR`.
 - `maxproc`- (Float) The maximum number of processors that can be allocated to the instance without shutting down or rebooting the `LPAR`.
 - `max_virtual_cores` - (Integer) The maximum number of virtual cores that can be assigned without rebooting the instance.
